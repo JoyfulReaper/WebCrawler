@@ -1,6 +1,12 @@
 CC = g++
 CFLAGS = -std=c++11 -c -O0 -ggdb -Wall
 
+async_http: async_http.o
+	$(CC) async_http.o -lboost_system -o async_http
+
+async_http.o: async_http.cpp
+	$(CC) $(CFLAGS) async_http.cpp
+
 timer: timer.o
 	$(CC) timer.o -lboost_system -o timer
 
@@ -26,4 +32,4 @@ strandTimer.o: strandTimer.cpp
 	$(CC) $(CFLAGS) -pthread strandTimer.cpp
 
 clean:
-	rm *.o timer astimer astimer2 strandTimer
+	rm -fr *.o timer astimer astimer2 strandTimer async_http
