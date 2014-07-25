@@ -18,6 +18,12 @@ astimer2: astimer2.o
 
 astimer2.o: astimer2.cpp
 	$(CC) $(CFLAGS) astimer2.cpp
+	
+strandTimer: strandTimer.o
+	$(CC) strandTimer.o -lboost_system -lboost_thread -o strandTimer
+
+strandTimer.o: strandTimer.cpp
+	$(CC) $(CFLAGS) -pthread strandTimer.cpp
 
 clean:
-	rm *.o timer astimer astimer2
+	rm *.o timer astimer astimer2 strandTimer
