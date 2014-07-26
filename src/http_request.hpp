@@ -96,7 +96,13 @@ public:
   
   std::vector<std::string> get_errors() { return this->errors; }
 
+  boost::asio::streambuf& get_response_buf() {return this->response_buf; }
+  
+  boost::asio::streambuf& get_request_buf() {return this->request_buf; }
+
 private:
+  boost::asio::streambuf response_buf;
+  boost::asio::streambuf request_buf;
   std::vector<std::string> errors;
   unsigned int port = 80;
   std::string server = "NULL";
