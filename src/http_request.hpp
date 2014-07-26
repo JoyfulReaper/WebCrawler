@@ -52,11 +52,7 @@ public:
   
   std::stringstream& get_data() { return this->data; }
   
-  //void set_data(std::stringstream data) {this->data = data; }
-  
   std::stringstream& get_headers() { return this->headers; }
-  
-  //void set_headers(std::stringstream headers) {this->headers = headers; }
   
   void set_request(std::string request) { this->request = request; }
   

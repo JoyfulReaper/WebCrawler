@@ -33,10 +33,20 @@ http_client::~http_client()
 
 }
 
-void http_client::make_request(http_request request)
+void http_client::make_request(http_request &request)
 {
   std::ostream request_stream(&request_buf);
-  request_stream << request.get_request();
+  
+  if(request.get_request().size() > 0)
+    request_stream << request.get_request();
+  else
+  {
+    request_stream << "GET " << request.get_path() << "HTTP/1.0\r\n";
+    request_stream << "User-Agent: https://github.com/JoyfulReaper/WebCrawler";
+    request_stream << "Host: " << request.get_server() << "\r\n";
+    request_stream << "Accept: */*\r\n";
+    request_stream << "Connection: close\r\n\r\n";
+  }
   
   tcp::resolver::query query(request.get_server(), std::to_string(request.get_port()));
 

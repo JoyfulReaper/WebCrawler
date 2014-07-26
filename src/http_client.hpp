@@ -14,6 +14,12 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * 
+ * Inspired by the Boost ASIO example:
+ * async_client.cpp
+ * Under the Boost License
+ * A slightly modified copy can be found int the test/asio/async_http.cpp file
+ * 
  */
 
 
@@ -36,7 +42,7 @@ public:
   
   virtual ~http_client();
   
-  void make_request(http_request request);
+  void make_request(http_request &request);
 
 private:
   tcp::resolver resolver;
