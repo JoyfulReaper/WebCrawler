@@ -31,7 +31,7 @@
 class http_request
 {
 public:
-  http_request(std::string server = "NULL", unsigned int port = 80);
+  http_request(std::string server = "NULL", std::string path = "/", unsigned int port = 80);
   
   virtual ~http_request();
 
@@ -100,7 +100,7 @@ private:
   std::vector<std::string> errors;
   unsigned int port = 80;
   std::string server = "NULL";
-  std::string path = "NULL";
+  std::string path = "NULL ";
   std::string http_version = "NULL";
   unsigned int status_code = 0;
   std::vector<std::string> headers;

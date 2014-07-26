@@ -7,16 +7,24 @@ int main(int argc, char **argv)
 {
   asio::io_service io_service;
   
-  http_request rq("google.com", 80);
+  http_request rq("google.com");
+  //http_request rq2("example.com");
   http_client hc(io_service);
   
-  //rq.set_request("GET / HTTP/1.0\r\nHost google.com\r\nConnect: close\r\n\r\n");
+  
   hc.make_request(rq);
+  //hc.make_request(rq2);
   io_service.run();
   
   auto headers = rq.get_headers();
   for(auto &header : headers)
     std::cout << header;
+    
+  std::cout << "\n";
+    
+  //headers = rq2.get_headers();
+  //for(auto &header : headers)
+  //  std::cout << header;
   
   return 0;
 }

@@ -55,18 +55,30 @@ private:
   asio::streambuf response_buf;
  
 
-  void handle_resolve(const system::error_code &err, 
-    tcp::resolver::iterator endpoint_it, http_request &request);
+  void handle_resolve(
+    const system::error_code &err, 
+    tcp::resolver::iterator endpoint_it, 
+    http_request &request);
 
-  void handle_connect(const system::error_code &err, http_request &request);
+  void handle_connect(
+    const system::error_code &err, 
+    http_request &request);
 
-  void handle_write_request(const system::error_code &err, http_request &request);
+  void handle_write_request(
+    const system::error_code &err, 
+    http_request &request);
 
-  void handle_read_status_line(const system::error_code &err, http_request &request);
+  void handle_read_status_line(
+    const system::error_code &err, 
+    http_request &request);
 
-  void handle_read_headers(const system::error_code &err, http_request &request);
+  void handle_read_headers(
+    const system::error_code &err, 
+    http_request &request);
 
-  void handle_read_content(const system::error_code &err, http_request &request);
+  void handle_read_content(
+    const system::error_code &err, 
+    http_request &request);
  
 };
 

@@ -19,9 +19,10 @@
 
 #include "http_request.hpp"
 
-http_request::http_request(std::string server, unsigned int port)
+http_request::http_request(std::string server, std::string path, unsigned int port)
   : port(port),
-    server(server)
+    server(server),
+    path(path)
 {
 }
 

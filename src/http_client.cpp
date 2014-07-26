@@ -34,7 +34,8 @@ http_client::~http_client()
 
 }
 
-void http_client::make_request(http_request &request)
+void http_client::make_request(
+  http_request &request)
 {
   std::ostream request_stream(&request_buf);
   
@@ -55,8 +56,10 @@ void http_client::make_request(http_request &request)
     asio::placeholders::error, asio::placeholders::iterator, boost::ref(request)));
 }
 
-void http_client::handle_resolve(const system::error_code &err, 
-  tcp::resolver::iterator endpoint_it, http_request &request)
+void http_client::handle_resolve(
+  const system::error_code &err, 
+  tcp::resolver::iterator endpoint_it, 
+  http_request &request)
 {
   if(!err)
   {
@@ -68,7 +71,9 @@ void http_client::handle_resolve(const system::error_code &err,
   }
 }
 
-void http_client::handle_connect(const system::error_code &err, http_request &request)
+void http_client::handle_connect(
+  const system::error_code &err, 
+  http_request &request)
 {
   if(!err)
   {
@@ -79,7 +84,9 @@ void http_client::handle_connect(const system::error_code &err, http_request &re
   }
 }
 
-void http_client::handle_write_request(const system::error_code &err, http_request &request)
+void http_client::handle_write_request(
+  const system::error_code &err, 
+  http_request &request)
 {
   if(!err)
   {
@@ -91,7 +98,9 @@ void http_client::handle_write_request(const system::error_code &err, http_reque
   }
 }
 
-void http_client::handle_read_status_line(const system::error_code &err, http_request &request)
+void http_client::handle_read_status_line(
+  const system::error_code &err, 
+  http_request &request)
 {
   if(!err)
   {
@@ -102,7 +111,6 @@ void http_client::handle_read_status_line(const system::error_code &err, http_re
     
     response_stream >> http_version;
     response_stream >> status_code;
-    
     request.set_http_version(http_version);
     request.set_status_code(status_code);
     
@@ -112,9 +120,13 @@ void http_client::handle_read_status_line(const system::error_code &err, http_re
       request.add_error( "Invalid response HTTP response");
       return;
     }
-    //std::cout << "HTTP Version: " << http_version << std::endl;
-    //std::cout << "Response returned with status code: ";
-    //std::cout << status_code << std::endl;
+    
+    if(DEBUG)
+    {
+      std::cout << "DEBUG: HTTP Version: " << http_version << std::endl;
+      std::cout << "DEBUG: Status code: " << status_code << std::endl;
+      std::cout << "DEBUG: Status message: " << status_message << "\n";
+    }
     
     asio::async_read_until(socket, response_buf, "\r\n\r\n",
       bind(&http_client::handle_read_headers, this, asio::placeholders::error, 
@@ -124,7 +136,9 @@ void http_client::handle_read_status_line(const system::error_code &err, http_re
   }
 }
 
-void http_client::handle_read_headers(const system::error_code &err, http_request &request)
+void http_client::handle_read_headers(
+  const system::error_code &err, 
+  http_request &request)
 {
   if(!err)
   {
@@ -133,11 +147,17 @@ void http_client::handle_read_headers(const system::error_code &err, http_reques
     
     while(std::getline(response_stream, header) && header != "\r")
     {
+      if(DEBUG)
+        std::cout << "DEBUG: " << header << "\n";
+        
       request.add_header(header + "\n");
     }
     
     if(response_buf.size() > 0)
+    {
+      std::cout << header << "\n";
       request.add_header(header);
+    }
       
     asio::async_read(socket, response_buf, asio::transfer_at_least(1),
       bind(&http_client::handle_read_content, this, asio::placeholders::error, 
@@ -148,7 +168,9 @@ void http_client::handle_read_headers(const system::error_code &err, http_reques
   }
 }
 
-void http_client::handle_read_content(const system::error_code &err, http_request &request)
+void http_client::handle_read_content(
+  const system::error_code &err, 
+  http_request &request)
 {
   if(!err)
   {
