@@ -10,7 +10,10 @@ AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AC_PROG_CXX
 AC_PROG_CC
 AC_LANG(C++)
+AC_PROG_RANLIB
+AM_PROG_AR
 
+# Check for C++11
 AX_CXX_COMPILE_STDCXX_11([noext],[mandatory])
 
 # Checks for libraries
@@ -22,6 +25,8 @@ AX_BOOST_BASE([1.54], [], [AC_MSG_ERROR[Boost is required, see boost.org]])
 # AX_BOOST_FILESYSTEM
 AX_BOOST_SYSTEM
 # AX_BOOST_SERIALIZATION
+
+AC_TYPE_SIZE_T
 
 AC_CONFIG_FILES([Makefile
 		 src/Makefile])
