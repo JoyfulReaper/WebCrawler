@@ -25,6 +25,8 @@
 #ifndef HTTP_CLIENT_H
 #define HTTP_CLIENT_H
 
+#include <boost/asio.hpp>
+
 using boost::asio::ip::tcp;
 using namespace boost;
 
@@ -32,13 +34,25 @@ static const bool DEBUG = true;
 
 class http_client
 {
-  public:
-    http_client();
-    virtual ~http_client();
+public:
+  http_client();
+  virtual ~http_client();
   
-  private:
-   tcp::resolver resolver;
-   tcp::socket socket;
+  
+
+private:
+ tcp::resolver resolver;
+ tcp::socket socket;
+ asio::streambuf request_buf;
+ asio::streambuf response_buf;
+ 
+ void handle_resolve(const system::error_code &err);
+ void handle_connect(const system::error_code &err);
+ void handle_write_request(const system::error_code &err);
+ void handle_read_status_line(const system::error_code &err);
+ void handle_read_headers(const system::error_code &err);
+ void handle_read_content(const system::error_code &err);
+ 
 };
 
 #endif /* HTTP_CLIENT_H */ 
