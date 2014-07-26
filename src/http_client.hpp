@@ -31,6 +31,7 @@
 #define _WC_HTTP_CLIENT_H_
 
 #include <boost/asio.hpp>
+#include <map>
 
 class http_request;
 
@@ -49,11 +50,13 @@ public:
   void make_request(http_request &request);
 
 private:
-  tcp::resolver resolver;
+  asio::io_service &io_service;
   tcp::socket socket;
+  std::map<std::string, tcp::socket> sockets;
+  asio::strand strand;
+  tcp::resolver resolver;
   asio::streambuf request_buf;
   asio::streambuf response_buf;
- 
 
   void handle_resolve(
     const system::error_code &err, 

@@ -22,8 +22,10 @@
 #include <sstream>
 
 http_client::http_client(asio::io_service &io_service) 
-  : resolver(io_service), 
-    socket(io_service)
+  : io_service(io_service),
+    socket(io_service),
+    strand(io_service),
+    resolver(io_service)
 {
 
 }
@@ -37,6 +39,8 @@ http_client::~http_client()
 void http_client::make_request(
   http_request &request)
 {
+  sockets.insert(std::pair<std::string, tcp::socket>(request.get_server(), 
+    tcp::socket(io_service)));
   std::ostream request_stream(&request_buf);
   
   if(request.get_request().size() > 0)
@@ -63,9 +67,9 @@ void http_client::handle_resolve(
 {
   if(!err)
   {
-    asio::async_connect(socket, endpoint_it,
-      bind(&http_client::handle_connect, this, asio::placeholders::error, 
-        boost::ref(request)));
+    asio::async_connect(sockets.at(request.get_server()), endpoint_it,
+      strand.wrap( bind( &http_client::handle_connect, this, asio::placeholders::error, 
+        boost::ref(request) ) ) );
   } else {
     request.add_error("Error: " + err.message());
   }
@@ -77,8 +81,9 @@ void http_client::handle_connect(
 {
   if(!err)
   {
-    asio::async_write(socket, request_buf, bind(&http_client::handle_write_request,
-      this, asio::placeholders::error, boost::ref(request)));
+    asio::async_write(sockets.at(request.get_server()), request_buf, 
+      strand.wrap(bind(&http_client::handle_write_request, this, 
+        asio::placeholders::error, boost::ref(request))));
   } else {
     request.add_error ("Error: " + err.message());
   }
@@ -90,9 +95,9 @@ void http_client::handle_write_request(
 {
   if(!err)
   {
-    asio::async_read_until(socket, response_buf, "\r\n",
-      bind(&http_client::handle_read_status_line, this, asio::placeholders::error, 
-        boost::ref(request)));
+    asio::async_read_until(sockets.at(request.get_server()), response_buf, "\r\n",
+      strand.wrap(bind(&http_client::handle_read_status_line, this, asio::placeholders::error, 
+        boost::ref(request))));
   } else {
     request.add_error ("Error: " + err.message());
   }
@@ -128,9 +133,9 @@ void http_client::handle_read_status_line(
       std::cout << "DEBUG: Status message: " << status_message << "\n";
     }
     
-    asio::async_read_until(socket, response_buf, "\r\n\r\n",
-      bind(&http_client::handle_read_headers, this, asio::placeholders::error, 
-        boost::ref(request)));
+    asio::async_read_until(sockets.at(request.get_server()), response_buf, "\r\n\r\n",
+      strand.wrap(bind(&http_client::handle_read_headers, this, asio::placeholders::error, 
+        boost::ref(request))));
   } else {
     request.add_error ("Error: " + err.message());
   }
@@ -159,9 +164,9 @@ void http_client::handle_read_headers(
       request.add_header(header);
     }
       
-    asio::async_read(socket, response_buf, asio::transfer_at_least(1),
-      bind(&http_client::handle_read_content, this, asio::placeholders::error, 
-        boost::ref(request)));
+    asio::async_read(sockets.at(request.get_server()), response_buf, asio::transfer_at_least(1),
+      strand.wrap(bind(&http_client::handle_read_content, this, asio::placeholders::error, 
+        boost::ref(request))));
     
   } else {
     request.add_error ("Error: " + err.message());
@@ -179,9 +184,9 @@ void http_client::handle_read_content(
     data_stream.get(data_string);
     request.get_data().append(data_string.str());
     
-    asio::async_read(socket, response_buf, asio::transfer_at_least(1),
-      bind(&http_client::handle_read_content, this,
-        asio::placeholders::error, boost::ref(request)));
+    asio::async_read(sockets.at(request.get_server()), response_buf, asio::transfer_at_least(1),
+      strand.wrap(bind(&http_client::handle_read_content, this,
+        asio::placeholders::error, boost::ref(request))));
   } else if (err != asio::error::eof) {
     request.add_error ("Error: " + err.message());
   }
