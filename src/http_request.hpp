@@ -92,7 +92,7 @@ public:
   
   void add_error(std::string error) { errors.push_back(error); }
   
-  bool has_error() { return (!errors.empty()); }
+  bool error() { return (!errors.empty()); }
   
   std::vector<std::string> get_errors() { return this->errors; }
 

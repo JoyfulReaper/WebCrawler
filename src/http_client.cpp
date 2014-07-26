@@ -47,7 +47,7 @@ void http_client::make_request(
     request_stream << request.get_request();
   else
   {
-    request_stream << "GET " << request.get_path() << "HTTP/1.0\r\n";
+    request_stream << "GET " << request.get_path() << " HTTP/1.0\r\n";
     request_stream << "User-Agent: https://github.com/JoyfulReaper/WebCrawler";
     request_stream << "Host: " << request.get_server() << "\r\n";
     request_stream << "Accept: */*\r\n";
@@ -179,10 +179,14 @@ void http_client::handle_read_content(
 {
   if(!err)
   {
-    std::istream data_stream(&request.get_response_buf());
-    std::stringbuf data_string;
-    data_stream.get(data_string);
-    request.get_data().append(data_string.str());
+    std::ostringstream ss;
+    ss << &request.get_response_buf();
+    request.get_data().append(ss.str());
+    
+    //std::istream data_stream(&request.get_response_buf());
+    //std::stringbuf data_string;
+    //data_stream.get(data_string);
+    //request.get_data().append(data_string.str());
     
     asio::async_read(sockets.at(request.get_server()), request.get_response_buf(), asio::transfer_at_least(1),
       strand.wrap(bind(&http_client::handle_read_content, this,

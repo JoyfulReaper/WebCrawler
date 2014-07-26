@@ -28,15 +28,19 @@ int main(int argc, char **argv)
   //hc.make_request(rq2);
   //io_service.stop();
   
+  std::cout << "\n";
   auto headers = rq.get_headers();
   for(auto &header : headers)
     std::cout << header;
-    
   std::cout << "\n";
     
+  std::cout << "\n";
   headers = rq2.get_headers();
   for(auto &header : headers)
     std::cout << header;
+  std::cout << "\n";
+  
+  std::cout << rq.get_data();
   
   return 0;
 }
