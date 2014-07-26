@@ -22,6 +22,10 @@
  * 
  */
 
+/**
+ * @file http_client.hpp
+ * @author Kyle Givler
+ */
 
 #ifndef _WC_HTTP_CLIENT_H_
 #define _WC_HTTP_CLIENT_H_

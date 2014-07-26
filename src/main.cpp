@@ -12,7 +12,11 @@ int main(int argc, char **argv)
   
   //rq.set_request("GET / HTTP/1.0\r\nHost google.com\r\nConnect: close\r\n\r\n");
   hc.make_request(rq);
-  
   io_service.run();
+  
+  auto headers = rq.get_headers();
+  for(auto &header : headers)
+    std::cout << header;
+  
   return 0;
 }

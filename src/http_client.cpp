@@ -19,6 +19,7 @@
 #include "http_client.hpp"
 #include "http_request.hpp"
 #include <boost/bind.hpp>
+#include <sstream>
 
 http_client::http_client(asio::io_service &io_service) 
   : resolver(io_service), 
@@ -60,9 +61,10 @@ void http_client::handle_resolve(const system::error_code &err,
   if(!err)
   {
     asio::async_connect(socket, endpoint_it,
-      bind(&http_client::handle_connect, this, asio::placeholders::error, boost::ref(request)));
+      bind(&http_client::handle_connect, this, asio::placeholders::error, 
+        boost::ref(request)));
   } else {
-    std::cerr << "Error: " << err.message() << "\n";
+    request.add_error("Error: " + err.message());
   }
 }
 
@@ -73,7 +75,7 @@ void http_client::handle_connect(const system::error_code &err, http_request &re
     asio::async_write(socket, request_buf, bind(&http_client::handle_write_request,
       this, asio::placeholders::error, boost::ref(request)));
   } else {
-    std::cerr << "Error: " << err.message() << "\n";
+    request.add_error ("Error: " + err.message());
   }
 }
 
@@ -85,7 +87,7 @@ void http_client::handle_write_request(const system::error_code &err, http_reque
       bind(&http_client::handle_read_status_line, this, asio::placeholders::error, 
         boost::ref(request)));
   } else {
-    std::cerr << "Error: " << err.message() << "\n";
+    request.add_error ("Error: " + err.message());
   }
 }
 
@@ -107,18 +109,18 @@ void http_client::handle_read_status_line(const system::error_code &err, http_re
     std::getline(response_stream, status_message);
     if(!response_stream || http_version.substr(0, 5) != "HTTP/")
     {
-      std::cout << "Invalid response: " << response_stream << std::endl;
+      request.add_error( "Invalid response HTTP response");
       return;
     }
-    std::cout << "HTTP Version: " << http_version << std::endl;
-    std::cout << "Response returned with status code: ";
-    std::cout << status_code << std::endl;
+    //std::cout << "HTTP Version: " << http_version << std::endl;
+    //std::cout << "Response returned with status code: ";
+    //std::cout << status_code << std::endl;
     
     asio::async_read_until(socket, response_buf, "\r\n\r\n",
       bind(&http_client::handle_read_headers, this, asio::placeholders::error, 
         boost::ref(request)));
   } else {
-    std::cerr << "Error: " << err << std::endl;
+    request.add_error ("Error: " + err.message());
   }
 }
 
@@ -130,18 +132,19 @@ void http_client::handle_read_headers(const system::error_code &err, http_reques
     std::string header;
     
     while(std::getline(response_stream, header) && header != "\r")
-      std::cout << header << "\n";
-    std::cout << std::endl;
+    {
+      request.add_header(header + "\n");
+    }
     
     if(response_buf.size() > 0)
-      std::cout << &response_buf;
+      request.add_header(header);
       
     asio::async_read(socket, response_buf, asio::transfer_at_least(1),
       bind(&http_client::handle_read_content, this, asio::placeholders::error, 
         boost::ref(request)));
     
   } else {
-    std::cerr << "Error: " << err << std::endl;
+    request.add_error ("Error: " + err.message());
   }
 }
 
@@ -149,12 +152,15 @@ void http_client::handle_read_content(const system::error_code &err, http_reques
 {
   if(!err)
   {
-    std::cout << &response_buf;
+    std::istream data_stream(&response_buf);
+    std::stringbuf data_string;
+    data_stream.get(data_string);
+    request.get_data().append(data_string.str());
     
     asio::async_read(socket, response_buf, asio::transfer_at_least(1),
       bind(&http_client::handle_read_content, this,
         asio::placeholders::error, boost::ref(request)));
   } else if (err != asio::error::eof) {
-    std::cout << "Error: " << err << std::endl;
+    request.add_error ("Error: " + err.message());
   }
 }
