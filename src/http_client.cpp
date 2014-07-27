@@ -41,6 +41,26 @@ http_client::~http_client()
 void http_client::make_request(
   http_request &request)
 {
+  
+  std::string domain = request.get_server();
+  std::size_t found = domain.find("://");
+  if(found != std::string::npos)
+  {
+    std::string proto = domain.substr(0, found + 2);
+    if(proto == "https://")
+    {
+      request.add_error("No https support :(");
+      return;
+    } else {
+      domain = domain.substr(found + 3);
+      request.set_server(domain);
+      if(DEBUG)
+      {
+        logger.debug("Converted to: " + domain);
+      }
+    }
+  }
+  
   sockets.insert(std::pair<std::string, tcp::socket>(request.get_server(), 
     tcp::socket(io_service)));
     
@@ -198,16 +218,17 @@ void http_client::handle_read_headers(
               if(found != std::string::npos)
               {
                 resource = resource.substr(0, found);
-                std::cout << "S: " << server << " L: " << resource << std::endl;
+                //std::cout << "S: " << server << " L: " << resource << std::endl;
                 request.set_server(server);
                 request.set_path(resource);
+                request.reset_buffers();
                 make_request(request);
-              }
-            }
+              } // Remove "\r"
+            } // Found ://
           }
-        }
-      } 
-    }
+        } // found Location:
+      } // loop through headers 
+    } // Status is 302/301
       
     asio::async_read(sockets.at(request.get_server()), request.get_response_buf(), asio::transfer_at_least(1),
       strand.wrap(bind(&http_client::handle_read_content, this, asio::placeholders::error, 

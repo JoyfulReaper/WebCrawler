@@ -131,6 +131,12 @@ public:
    */
   std::vector<std::string> get_links();
 
+  void reset_buffers()
+  {
+    response_buf.consume(response_buf.size());
+    request_buf.consume(request_buf.size());
+  }
+
 private:
   RequestType type = RequestType::GET; 
   boost::asio::streambuf response_buf;

@@ -19,6 +19,7 @@
 
 #include "http_request.hpp"
 #include <boost/algorithm/string/case_conv.hpp>
+#include <cstdlib>
 
 static const bool DEBUG = true;
 
@@ -60,6 +61,8 @@ void http_request::search_for_links(GumboNode *node, std::vector<std::string> &l
     if(link[0] == '/')
       link.insert(0, get_server());
 
+    boost::to_lower(link);
+
     std::size_t found = link.find("#");
     if(found != std::string::npos)
     {
@@ -76,7 +79,33 @@ void http_request::search_for_links(GumboNode *node, std::vector<std::string> &l
       return;
     }
 
-    boost::to_lower(link);
+    found = link.find("%");
+    if(found != std::string::npos)
+    {
+      if(!isdigit(link[found + 1]))
+      {
+        link[found + 1] = toupper(link[found + 1]);
+        if(DEBUG)
+          logger.debug("Normalilzed: " + link);
+      }
+      if(!isdigit(link[found + 2]))
+      {
+        link[found + 2] = toupper(link[found + 1]);
+        if(DEBUG)
+          logger.debug("Normalilzed: " + link);
+      }
+    }
+
+    found = link.find(":80");
+    if(found != std::string::npos)
+    {
+      std::string before = link.substr(0, found);
+      std::string after = link.substr(found + 3, link.length());
+      link = before + after;
+      if(DEBUG)
+        logger.debug("Normailzed: " + link);
+    }
+    
     links.push_back(link);
   }
   
