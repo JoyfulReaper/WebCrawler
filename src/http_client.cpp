@@ -48,14 +48,14 @@ void http_client::make_request(
   else if (request.get_request_type() == RequestType::GET)
   {
     request_stream << "GET " << request.get_path() << " HTTP/1.0\r\n";
-    request_stream << "User-Agent: https://github.com/JoyfulReaper/WebCrawler";
+    request_stream << "User-Agent: https://github.com/JoyfulReaper/WebCrawler\r\n";
     request_stream << "Host: " << request.get_server() << "\r\n";
     request_stream << "Accept: */*\r\n";
     request_stream << "Connection: close\r\n\r\n";
   } else if (request.get_request_type() == RequestType::HEAD)
   {
     request_stream << "HEAD " << request.get_path() << " HTTP/1.0\r\n";
-    request_stream << "User-Agent: https://github.com/JoyfulReaper/WebCrawler";
+    request_stream << "User-Agent: https://github.com/JoyfulReaper/WebCrawler\r\n";
     request_stream << "Host: " << request.get_server() << "\r\n";
     request_stream << "Accept: */*\r\n";
     request_stream << "Connection: close\r\n\r\n";

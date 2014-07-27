@@ -38,7 +38,7 @@ class http_request;
 using boost::asio::ip::tcp;
 using namespace boost;
 
-static const bool DEBUG = true;
+static const bool DEBUG = false;
 
 class http_client
 {

@@ -11,9 +11,9 @@ int main(int argc, char **argv)
   boost::thread_group threads; 
    
   http_client hc(io_service);
-  http_request rq("google.com", "/images/srpr/logo11w.png");
+  http_request rq("www.google.com", "/sadasd");
   http_request rq2("reddit.com");
-  rq.set_request_type(RequestType::HEAD);
+  rq.set_request_type(RequestType::GET);
   hc.make_request(rq);
   //hc.make_request(rq2);
   
@@ -35,7 +35,8 @@ int main(int argc, char **argv)
     std::cout << header;
   std::cout << "\n";
   
-  //std::cout << rq.get_data();
+  std::cout << rq.get_data() << std::endl;
+  
   
   return 0;
 }
