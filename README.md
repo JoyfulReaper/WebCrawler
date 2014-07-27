@@ -9,8 +9,8 @@ https://github.com/Tomaka17/luawrapper
 
 Dependencies:
 ============
-You can probably install all of these through your package manager: 
-Boost asio(boost.org)  
-SQLite3  (sqlite.org)  
-Lua 5.2 (lua.org)  
+You can probably install all of these through your package manager:  
+Boost asio (http://boost.org)  
+SQLite3  (http://sqlite.org)  
+Lua 5.2 (http://lua.org)  
 Gumbo (https://github.com/google/gumbo-parser)
