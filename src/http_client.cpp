@@ -45,9 +45,16 @@ void http_client::make_request(
   
   if(request.get_request().size() > 0)
     request_stream << request.get_request();
-  else
+  else if (request.get_request_type() == RequestType::GET)
   {
     request_stream << "GET " << request.get_path() << " HTTP/1.0\r\n";
+    request_stream << "User-Agent: https://github.com/JoyfulReaper/WebCrawler";
+    request_stream << "Host: " << request.get_server() << "\r\n";
+    request_stream << "Accept: */*\r\n";
+    request_stream << "Connection: close\r\n\r\n";
+  } else if (request.get_request_type() == RequestType::HEAD)
+  {
+    request_stream << "HEAD " << request.get_path() << " HTTP/1.0\r\n";
     request_stream << "User-Agent: https://github.com/JoyfulReaper/WebCrawler";
     request_stream << "Host: " << request.get_server() << "\r\n";
     request_stream << "Accept: */*\r\n";
@@ -182,11 +189,7 @@ void http_client::handle_read_content(
     std::ostringstream ss;
     ss << &request.get_response_buf();
     request.get_data().append(ss.str());
-    
-    //std::istream data_stream(&request.get_response_buf());
-    //std::stringbuf data_string;
-    //data_stream.get(data_string);
-    //request.get_data().append(data_string.str());
+
     
     asio::async_read(sockets.at(request.get_server()), request.get_response_buf(), asio::transfer_at_least(1),
       strand.wrap(bind(&http_client::handle_read_content, this,

@@ -28,6 +28,8 @@
 #include <string>
 #include <vector>
 
+enum class RequestType { HEAD, GET };
+
 class http_request
 {
 public:
@@ -99,8 +101,13 @@ public:
   boost::asio::streambuf& get_response_buf() {return this->response_buf; }
   
   boost::asio::streambuf& get_request_buf() {return this->request_buf; }
+  
+  void set_request_type(RequestType type) { this->type = type; }
+  
+  RequestType get_request_type() { return this->type; }
 
 private:
+  RequestType type = RequestType::GET; 
   boost::asio::streambuf response_buf;
   boost::asio::streambuf request_buf;
   std::vector<std::string> errors;

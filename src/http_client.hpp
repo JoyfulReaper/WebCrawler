@@ -51,12 +51,9 @@ public:
 
 private:
   asio::io_service &io_service;
-  //tcp::socket socket;
   std::map<std::string, tcp::socket> sockets;
   asio::strand strand;
   tcp::resolver resolver;
-  //asio::streambuf request_buf;
-  //asio::streambuf response_buf;
 
   void handle_resolve(
     const system::error_code &err, 
