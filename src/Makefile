@@ -113,7 +113,7 @@ am_webCrawler_OBJECTS = webCrawler-main.$(OBJEXT) \
 webCrawler_OBJECTS = $(am_webCrawler_OBJECTS)
 am__DEPENDENCIES_1 =
 webCrawler_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) liblogger.a
+	$(am__DEPENDENCIES_1)
 webCrawler_LINK = $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) \
 	$(webCrawler_LDFLAGS) $(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_$(V))
@@ -298,7 +298,7 @@ top_srcdir = ..
 noinst_LIBRARIES = liblogger.a
 liblogger_a_SOURCES = logger/logger.cxx
 webCrawler_SOURCES = main.cpp http_client.cpp http_request.cpp
-webCrawler_LDADD = $(LUA_LIB) $(BOOST_SYSTEM_LIB) $(BOOST_THREAD_LIB) -ltidy liblogger.a
+webCrawler_LDADD = $(LUA_LIB) $(BOOST_SYSTEM_LIB) $(BOOST_THREAD_LIB) -ltidy
 webCrawler_LDFLAGS = $(BOOST_LDFLAGS)
 webCrawler_CPPFLAGS = $(LUA_INCLUDE) $(BOOST_CPPFLAGS) -pthread -Wall
 all: all-am
