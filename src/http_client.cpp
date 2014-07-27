@@ -21,14 +21,16 @@
 #include <boost/bind.hpp>
 #include <sstream>
 
+static const bool DEBUG = false;
+
 http_client::http_client(asio::io_service &io_service) 
   : io_service(io_service),
     strand(io_service),
-    resolver(io_service)
+    resolver(io_service),
+    logger("http_client")
 {
-
+  logger.setIgnoreLevel(Level::TRACE);
 }
-
 
 http_client::~http_client()
 {
@@ -43,16 +45,16 @@ void http_client::make_request(
     
   std::ostream request_stream(&request.get_request_buf());
   
-  if(request.get_request().size() > 0)
+  if(request.get_request().size() > 0) // Request provided
     request_stream << request.get_request();
-  else if (request.get_request_type() == RequestType::GET)
+  else if (request.get_request_type() == RequestType::GET) // Get request
   {
     request_stream << "GET " << request.get_path() << " HTTP/1.0\r\n";
     request_stream << "User-Agent: https://github.com/JoyfulReaper/WebCrawler\r\n";
     request_stream << "Host: " << request.get_server() << "\r\n";
     request_stream << "Accept: */*\r\n";
     request_stream << "Connection: close\r\n\r\n";
-  } else if (request.get_request_type() == RequestType::HEAD)
+  } else if (request.get_request_type() == RequestType::HEAD)  // Head request
   {
     request_stream << "HEAD " << request.get_path() << " HTTP/1.0\r\n";
     request_stream << "User-Agent: https://github.com/JoyfulReaper/WebCrawler\r\n";
@@ -135,9 +137,9 @@ void http_client::handle_read_status_line(
     
     if(DEBUG)
     {
-      std::cout << "DEBUG: HTTP Version: " << http_version << std::endl;
-      std::cout << "DEBUG: Status code: " << status_code << std::endl;
-      std::cout << "DEBUG: Status message: " << status_message << "\n";
+      logger.debug("HTTP Version: " + http_version);
+      logger.debug("Status code: " + std::to_string(status_code));
+      logger.debug("Status message: " + status_message);
     }
     
     asio::async_read_until(sockets.at(request.get_server()), request.get_response_buf(), "\r\n\r\n",
@@ -160,7 +162,7 @@ void http_client::handle_read_headers(
     while(std::getline(response_stream, header) && header != "\r")
     {
       if(DEBUG)
-        std::cout << "DEBUG: " << header << "\n";
+        logger.debug(header);
         
       request.add_header(header + "\n");
     }

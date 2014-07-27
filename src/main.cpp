@@ -70,5 +70,9 @@ int main(int argc, char **argv)
     }
   }
   
+  auto links = rq.get_links();
+  for(auto &link : links)
+    std::cout << link << "\n";
+  
   return 0;
 }

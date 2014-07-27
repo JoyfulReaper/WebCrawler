@@ -25,6 +25,7 @@
 #define _WC_HTTP_REQUEST_H_
 
 #include <boost/asio.hpp>
+#include <gumbo.h>
 #include <string>
 #include <vector>
 
@@ -123,6 +124,11 @@ public:
   void set_request_type(RequestType type) { this->type = type; }
   
   RequestType get_request_type() { return this->type; }
+  
+  /**
+   * @return all links to other pages
+   */
+  std::vector<std::string> get_links();
 
 private:
   RequestType type = RequestType::GET; 
@@ -137,6 +143,9 @@ private:
   std::vector<std::string> headers;
   std::string data;
   std::string request;
+  
+  void search_for_links(GumboNode *node, std::vector<std::string> &links);
+  
 };
 
 #endif

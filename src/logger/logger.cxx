@@ -73,7 +73,7 @@ void Logger::log(Level level, std::string message)
   auto it = streams.begin();
   while(it != streams.end())
   {
-    **it << "LOGGER(" << name << ":" << sLevel << "): " << message << std::endl;
+    **it << name << ":" << sLevel << ": " << message << std::endl;
     ++it;
   }
 }

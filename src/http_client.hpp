@@ -32,13 +32,12 @@
 
 #include <boost/asio.hpp>
 #include <map>
+#include "logger/logger.hpp"
 
 class http_request;
 
 using boost::asio::ip::tcp;
 using namespace boost;
-
-static const bool DEBUG = false;
 
 class http_client
 {
@@ -54,6 +53,7 @@ private:
   std::map<std::string, tcp::socket> sockets;
   asio::strand strand;
   tcp::resolver resolver;
+  Logger logger;
 
   void handle_resolve(
     const system::error_code &err, 
@@ -79,7 +79,6 @@ private:
   void handle_read_content(
     const system::error_code &err, 
     http_request &request);
- 
 };
 
 #endif
