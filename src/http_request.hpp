@@ -28,6 +28,7 @@
 #include <gumbo.h>
 #include <string>
 #include <vector>
+#include <logger/logger.hpp>
 
 enum class RequestType { HEAD, GET };
 
@@ -56,7 +57,7 @@ public:
   /**
    * @param server Server associated with this http_request
    */
-  void set_server(std::string) { this->server = server; }
+  void set_server(std::string server) { this->server = server; }
   
   /**
    * @return Path/Resource associated with this http_request
@@ -143,6 +144,7 @@ private:
   std::vector<std::string> headers;
   std::string data;
   std::string request;
+  Logger logger;
   
   void search_for_links(GumboNode *node, std::vector<std::string> &links);
   

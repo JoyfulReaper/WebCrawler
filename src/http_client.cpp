@@ -19,9 +19,10 @@
 #include "http_client.hpp"
 #include "http_request.hpp"
 #include <boost/bind.hpp>
+#include <boost/algorithm/string/find.hpp>
 #include <sstream>
 
-static const bool DEBUG = false;
+static const bool DEBUG = true;
 
 http_client::http_client(asio::io_service &io_service) 
   : io_service(io_service),
@@ -171,6 +172,41 @@ void http_client::handle_read_headers(
     {
       std::cout << header << "\n";
       request.add_header(header);
+    }
+     
+    // I Hate string parsing :(
+    if(request.get_status_code() == 302 || request.get_status_code() == 301)
+    {
+      auto headers = request.get_headers();
+      for(auto &header : headers)
+      {
+        std::size_t found = header.find("Location: ");
+        if(found != std::string::npos)
+        {
+          std::string location = header.substr(10, header.length());
+          found = location.find("://");
+          if(found)
+          {
+            location = location.substr(found + 3, location.length());
+            found = location.find("/");
+            if(found != std::string::npos)
+            {
+              std::string server = location.substr(0, found);
+              std::string resource = location.substr(found, location.length());
+              
+              found = resource.find("\r");
+              if(found != std::string::npos)
+              {
+                resource = resource.substr(0, found);
+                std::cout << "S: " << server << " L: " << resource << std::endl;
+                request.set_server(server);
+                request.set_path(resource);
+                make_request(request);
+              }
+            }
+          }
+        }
+      } 
     }
       
     asio::async_read(sockets.at(request.get_server()), request.get_response_buf(), asio::transfer_at_least(1),

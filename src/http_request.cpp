@@ -18,12 +18,17 @@
 
 
 #include "http_request.hpp"
+#include <boost/algorithm/string/case_conv.hpp>
+
+static const bool DEBUG = true;
 
 http_request::http_request(std::string server, std::string path, unsigned int port)
   : port(port),
     server(server),
-    path(path)
+    path(path),
+    logger("http_request")
 {
+  logger.setIgnoreLevel(Level::TRACE);
 }
 
 http_request::~http_request() {}
@@ -50,11 +55,28 @@ void http_request::search_for_links(GumboNode *node, std::vector<std::string> &l
   GumboAttribute *href;
   if(node->v.element.tag == GUMBO_TAG_A &&
     (href = gumbo_get_attribute(&node->v.element.attributes, "href")))
-  {
+  { // Minimal normilization
     std::string link = href->value;
     if(link[0] == '/')
       link.insert(0, get_server());
-    //std::cout << link << std::endl;
+
+    std::size_t found = link.find("#");
+    if(found != std::string::npos)
+    {
+      if(DEBUG)
+        logger.debug("Dropped link: " + link);
+      return;
+    }
+
+    found = link.find("?");
+    if(found != std::string::npos)
+    {
+      if(DEBUG)
+        logger.debug("Dropped link: " + link);
+      return;
+    }
+
+    boost::to_lower(link);
     links.push_back(link);
   }
   
