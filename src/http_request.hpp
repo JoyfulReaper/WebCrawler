@@ -67,7 +67,9 @@ public:
    */
   void set_path(std::string) { this->path = path; }
 
-  
+  /**
+   * @return The HTTP version the server is using
+   */
   std::string get_http_version() { return this->http_version; }
 
   void set_http_version(std::string version) {this->http_version = version;}
@@ -79,10 +81,16 @@ public:
   
   void set_status_code(unsigned int code) { this->status_code = code; }
   
+  /**
+   * @return The raw data that the server returned
+   */
   std::string& get_data() { return this->data; }
   
   void add_header(std::string header) { this->headers.push_back(header); }
   
+  /**
+   * @return A vector of the headers that the server responded with
+   */
   std::vector<std::string> get_headers() { return this->headers; }
   
   /**
@@ -94,14 +102,24 @@ public:
   
   void add_error(std::string error) { errors.push_back(error); }
   
+  /**
+   * @return true on error, false on success
+   */
   bool error() { return (!errors.empty()); }
   
+  /**
+   * @return a vector of errors
+   */
   std::vector<std::string> get_errors() { return this->errors; }
 
   boost::asio::streambuf& get_response_buf() {return this->response_buf; }
   
   boost::asio::streambuf& get_request_buf() {return this->request_buf; }
   
+  /**
+   * @param type The type of request to make.
+   * Currently supported: GET and HEAD
+   */
   void set_request_type(RequestType type) { this->type = type; }
   
   RequestType get_request_type() { return this->type; }

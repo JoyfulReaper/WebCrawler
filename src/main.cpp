@@ -3,64 +3,8 @@
 #include <boost/thread/thread.hpp>
 #include "http_client.hpp"
 #include "http_request.hpp"
-#include <tidy.h>
-#include <buffio.h>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/xml_parser.hpp>
- 
- 
-struct html_test
-{
-  std::string title;
-  void load(std::istringstream &stream)
-  {
-    using boost::property_tree::ptree;
-    ptree pt;
-    read_xml(stream, pt);
-    
-    title = pt.get("html.head.title", "null");
-    return;
-  }
-};
- 
-std::string CleanHTML(const std::string &html){
-  // Initialize a Tidy document
-  TidyDoc tidyDoc = tidyCreate();
-  TidyBuffer tidyOutputBuffer = {0};
-
-  // Configure Tidy
-  // The flags tell Tidy to output XML and disable showing warnings
-  bool configSuccess = tidyOptSetBool(tidyDoc, TidyXmlOut, yes)
-      && tidyOptSetBool(tidyDoc, TidyQuiet, yes)
-      && tidyOptSetBool(tidyDoc, TidyNumEntities, yes)
-      && tidyOptSetBool(tidyDoc, TidyShowWarnings, no);
-
-  int tidyResponseCode = -1;
-
-  // Parse input
-  if (configSuccess)
-      tidyResponseCode = tidyParseString(tidyDoc, html.c_str());
-
-  // Process HTML
-  if (tidyResponseCode >= 0)
-      tidyResponseCode = tidyCleanAndRepair(tidyDoc);
-
-  // Output the HTML to our buffer
-  if (tidyResponseCode >= 0)
-      tidyResponseCode = tidySaveBuffer(tidyDoc, &tidyOutputBuffer);
-
-  // Any errors from Tidy?
-  if (tidyResponseCode < 0)
-      throw ("Tidy encountered an error while parsing an HTML response. Tidy response code: " + tidyResponseCode);
-
-  // Grab the result from the buffer and then free Tidy's memory
-  std::string tidyResult = (char*)tidyOutputBuffer.bp;
-  tidyBufFree(&tidyOutputBuffer);
-  tidyRelease(tidyDoc);
-
-  return tidyResult;
-}
-
+#include <gumbo.h>
+#include <cassert>
 
 int main(int argc, char **argv)
 {
@@ -94,13 +38,37 @@ int main(int argc, char **argv)
   std::cout << "\n";
   
   //std::cout << rq.get_data() << std::endl;
-  std::cout << CleanHTML(rq.get_data().c_str());
   
-  std::istringstream ss;
-  ss.str(CleanHTML(rq.get_data().c_str()));
-  html_test test;
-  test.load(ss);
-  std::cout << "TITLE: " << test.title << std::endl;
+  GumboOutput *output = gumbo_parse(rq.get_data().c_str());
+  GumboNode *root = output->root;
+  
+  const GumboVector *root_children = &root->v.element.children;
+  GumboNode *head = NULL;
+  for(int i = 0; i < root_children->length; ++i)
+  {
+    GumboNode *child = static_cast<GumboNode*>(root_children->data[i]);
+    if(child->type == GUMBO_NODE_ELEMENT && child->v.element.tag == GUMBO_TAG_HEAD)
+    {
+      head = child;
+      break;
+    }
+  }
+  
+  assert(head != NULL);
+  
+  GumboVector* head_children = &head->v.element.children;
+  for(int i = 0; i < head_children->length; i++)
+  {
+    GumboNode *child = static_cast<GumboNode*>(head_children->data[i]);
+    if(child->type == GUMBO_NODE_ELEMENT && child->v.element.tag == GUMBO_TAG_TITLE)
+    {
+      if(child->v.element.children.length != 1)
+        std::cout << "No title" << std::endl;
+      GumboNode *title_text = static_cast<GumboNode*>(child->v.element.children.data[0]);
+      assert(title_text->type == GUMBO_NODE_TEXT);
+      std::cout << "Title: " << title_text->v.text.text << "\n";
+    }
+  }
   
   return 0;
 }
