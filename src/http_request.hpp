@@ -137,6 +137,12 @@ public:
     request_buf.consume(request_buf.size());
   }
 
+  void reset_errors()
+  {
+    for(auto it = errors.begin(); it != errors.end(); ++it)
+      errors.pop_back();
+  }
+
 private:
   RequestType type = RequestType::GET; 
   boost::asio::streambuf response_buf;

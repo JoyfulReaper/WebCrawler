@@ -22,6 +22,7 @@ AX_LUA_HEADERS
 AX_LUA_LIBS
 
 PKG_CHECK_MODULES([GUMBO], [gumbo])
+PKG_CHECK_MODULES([SQLITE], [sqlite3])
 
 AX_BOOST_BASE([1.54], [], [AC_MSG_ERROR[Boost is required, see boost.org]])
 # AX_BOOST_FILESYSTEM

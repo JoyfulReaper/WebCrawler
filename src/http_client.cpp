@@ -41,7 +41,6 @@ http_client::~http_client()
 void http_client::make_request(
   http_request &request)
 {
-  
   std::string domain = request.get_server();
   std::size_t found = domain.find("://");
   if(found != std::string::npos)
@@ -60,6 +59,8 @@ void http_client::make_request(
       }
     }
   }
+  
+  request.reset_errors();
   
   sockets.insert(std::pair<std::string, tcp::socket>(request.get_server(), 
     tcp::socket(io_service)));
