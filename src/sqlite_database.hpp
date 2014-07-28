@@ -45,8 +45,8 @@ public:
   void set_visited(s_request request);
   
   bool get_visited(s_request request);
-  
-  
+
+  void set_last_visited(s_request request);
   
 private:
   std::string databaseFile;

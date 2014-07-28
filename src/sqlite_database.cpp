@@ -23,6 +23,7 @@
 
 #include "sqlite_database.hpp"
 #include <boost/asio.hpp>
+#include <chrono>
 
 sqlite_database::sqlite_database(std::string databaseFile)
   : databaseFile(databaseFile),
@@ -116,9 +117,9 @@ bool sqlite_database::get_visited(s_request request)
   }
   
   rc = sqlite3_step(statement);
-  if(rc != SQLITE_DONE)
+  if(rc != SQLITE_OK && rc != SQLITE_ROW)
   {
-    logger.debug("ERROR CODE: " + std::to_string(rc));
+    logger.debug("get_visited ERROR CODE: " + std::to_string(rc));
     throw("SQLITE ERROR: get_visited");
   }
   
@@ -134,7 +135,7 @@ void sqlite_database::set_visited(s_request request)
     + request->get_server() + "' AND path = '" + request->get_path() + \
     "' AND protocol = '" + request->get_protocol() + "';";
   
-  std::cout << sql;
+  //std::cout << sql;
   
   rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
   if(rc != SQLITE_OK)
@@ -144,10 +145,44 @@ void sqlite_database::set_visited(s_request request)
   }
   
   rc = sqlite3_step(statement);
-  
   if(rc != SQLITE_DONE)
   {
-    logger.debug("ERROR CODE: " + std::to_string(rc));
+    logger.debug("set_visited ERROR CODE: " + std::to_string(rc));
     throw("SQLITE ERROR: set_visited");
   }
+  
+  set_last_visited(request);
+  return;
+}
+
+void sqlite_database::set_last_visited(s_request request)
+{
+  using namespace std::chrono;
+  system_clock::time_point tp = system_clock::now();
+  system_clock::duration dtn = tp.time_since_epoch();
+  
+  unsigned int seconds = dtn.count() * system_clock::period::num / system_clock::period::den;
+  
+  sqlite3_stmt *statement;
+  int rc;
+  
+  std::string sql = "UPDATE Links SET lastVisited = '" + std::to_string(seconds) \
+    + "' WHERE domain = '" + request->get_server() + "' AND path = '" + request->get_path() + \
+    "' AND protocol = '" + request->get_protocol() + "';";
+  //std::cout << sql;  
+  
+  rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
+  if(rc != SQLITE_OK)
+  {
+    logger.debug("setlate ERROR CODE: " + std::to_string(rc));
+    throw("SQLITE ERROR");
+  }
+  
+  rc = sqlite3_step(statement);
+  if(rc != SQLITE_DONE)
+  {
+    logger.debug("set_last_visited ERROR CODE: " + std::to_string(rc));
+    throw("SQLITE ERROR: set_visited");
+  }
+  return;
 }
