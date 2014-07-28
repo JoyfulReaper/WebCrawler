@@ -26,10 +26,12 @@
 
 #include <sqlite3.h>
 #include <string>
+#include <memory>
 #include "http_request.hpp"
 #include "logger/logger.hpp"
 
 using namespace boost;
+typedef std::shared_ptr<http_request> s_request;
 
 class sqlite_database
 {
@@ -38,11 +40,11 @@ public:
 
   virtual ~sqlite_database();
   
-  void add_links(http_request &request);
+  void add_links(s_request request);
   
-  void set_visited(http_request &request);
+  void set_visited(s_request request);
   
-  bool get_visited(http_request &request);
+  bool get_visited(s_request request);
   
   
   

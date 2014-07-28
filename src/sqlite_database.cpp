@@ -41,13 +41,16 @@ sqlite_database::~sqlite_database()
     sqlite3_close(db);
 }
 
-void sqlite_database::add_links(http_request &request)
+void sqlite_database::add_links(s_request request)
 {
   std::string protocol;
   std::string domain;
   std::string path;
   
-  auto links = request.get_links();
+  while(!request->get_completed())
+    sleep(1);
+  
+  auto links = request->get_links();
   for(auto &link : links)
   {
     std::size_t found = link.find("://");
@@ -96,14 +99,14 @@ void sqlite_database::add_links(http_request &request)
   return;
 }
 
-bool sqlite_database::get_visited(http_request &request)
+bool sqlite_database::get_visited(s_request request)
 {
   sqlite3_stmt *statement;
   int rc;
   
   std::string sql = "SELECT visited FROM Links WHERE domain = '" \
-    + request.get_server() + "' AND path = '" + request.get_path() + \
-    "' AND protocol = '" + request.get_protocol() + "';";
+    + request->get_server() + "' AND path = '" + request->get_path() + \
+    "' AND protocol = '" + request->get_protocol() + "';";
 
   rc= sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
   if(rc != SQLITE_OK)
@@ -122,14 +125,14 @@ bool sqlite_database::get_visited(http_request &request)
   return sqlite3_column_int(statement, 0);
 }
 
-void sqlite_database::set_visited(http_request &request)
+void sqlite_database::set_visited(s_request request)
 {
   sqlite3_stmt *statement;
   int rc;
   
   std::string sql = "UPDATE Links SET visited = '1' WHERE domain = '" \
-    + request.get_server() + "' AND path = '" + request.get_path() + \
-    "' AND protocol = '" + request.get_protocol() + "';";
+    + request->get_server() + "' AND path = '" + request->get_path() + \
+    "' AND protocol = '" + request->get_protocol() + "';";
   
   std::cout << sql;
   

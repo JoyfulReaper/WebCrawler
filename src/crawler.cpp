@@ -40,7 +40,6 @@ crawler::~crawler()
  
 void crawler::start()
 {
-  //http_request request;
   thread_group threads;
   asio::io_service::work work(io_service);
   http_client client(io_service);
@@ -50,26 +49,19 @@ void crawler::start()
   for(std::size_t i = 0; i < num_threads; i++)
     threads.create_thread(boost::bind(&asio::io_service::run, &io_service));
   
-  //while(has_requests())
-  //{
-    http_request request("example.com");
-    io_service.post(boost::bind(&http_client::make_request, &client, boost::ref(request)));
-    io_service.post(strand.wrap(boost::bind(&sqlite_database::add_links, &db, boost::ref(request))));
-  //}
-  
-  while(!request.get_completed())
+  std::shared_ptr<http_request> req(new http_request("google.com"));
+  request_queue.push_back(std::move(req));
+  for(int i = 0; i < 1; i++)
+  //while(!request_queue.empty())
   {
-    sleep(1);
+    std::shared_ptr<http_request> request = request_queue.front();
+    io_service.post(boost::bind(&http_client::make_request, &client, (request)));
+    io_service.post(strand.wrap(boost::bind(&sqlite_database::add_links, &db, (request))));
   }
   
+  sleep(5);
   io_service.stop();
   threads.join_all();
-  
-  db.add_links(request);
-  
-  //auto links = r.get_links();
-  //for(auto &link : links)
-  //  std::cout << link << std::endl;
   
   return;
 }

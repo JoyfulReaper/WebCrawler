@@ -25,6 +25,7 @@
 #define _WC_CRAWLER_H_
 
 #include <boost/asio.hpp>
+#include <memory>
 #include <vector>
 #include "http_request.hpp"
 
@@ -49,7 +50,7 @@ private:
   asio::io_service io_service;
   std::size_t num_threads = 2;
   std::string databaseFile = "UNSET";
-  std::vector<http_request> request_queue;
+  std::vector<std::shared_ptr<http_request>> request_queue;
 };
 
 #endif
