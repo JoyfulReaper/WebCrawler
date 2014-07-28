@@ -29,6 +29,8 @@
 #include "http_request.hpp"
 #include "logger/logger.hpp"
 
+using namespace boost;
+
 class sqlite_database
 {
 public:
@@ -45,8 +47,8 @@ public:
   
   
 private:
-  sqlite3 *db;
   std::string databaseFile;
+  sqlite3 *db;
   Logger logger;
 };
 

@@ -25,9 +25,10 @@
 #define _WC_CRAWLER_H_
 
 #include <boost/asio.hpp>
+#include <vector>
+#include "http_request.hpp"
 
 using namespace boost;
-class http_request;
 
 class crawler
 {
@@ -38,6 +39,8 @@ public:
 
   void start();
 
+  http_request get_next_request();
+
   void set_database_name(std::string database) { this->databaseFile = database; }
 
   std::string get_database_name() { return this->databaseFile; }
@@ -46,7 +49,7 @@ private:
   asio::io_service io_service;
   std::size_t num_threads = 2;
   std::string databaseFile = "UNSET";
-  
+  std::vector<http_request> request_queue;
 };
 
 #endif

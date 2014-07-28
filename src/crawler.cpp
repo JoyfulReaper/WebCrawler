@@ -40,16 +40,22 @@ crawler::~crawler()
  
 void crawler::start()
 {
-  http_request request("www.w3schools.com", "/sql/sql_like.asp");  
+  //http_request request;
   thread_group threads;
   asio::io_service::work work(io_service);
   http_client client(io_service);
   sqlite_database db("test.db");
+  asio::strand strand(io_service);
   
   for(std::size_t i = 0; i < num_threads; i++)
     threads.create_thread(boost::bind(&asio::io_service::run, &io_service));
   
-  io_service.post(boost::bind(&http_client::make_request, &client, boost::ref(request)));
+  //while(has_requests())
+  //{
+    http_request request("example.com");
+    io_service.post(boost::bind(&http_client::make_request, &client, boost::ref(request)));
+    io_service.post(strand.wrap(boost::bind(&sqlite_database::add_links, &db, boost::ref(request))));
+  //}
   
   while(!request.get_completed())
   {

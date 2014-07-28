@@ -99,8 +99,8 @@ void http_client::handle_resolve(
   if(!err)
   {
     asio::async_connect(sockets.at(request.get_server()), endpoint_it,
-      strand.wrap( bind( &http_client::handle_connect, this, asio::placeholders::error, 
-        boost::ref(request) ) ) );
+      strand.wrap( strand.wrap(bind( &http_client::handle_connect, this, asio::placeholders::error, 
+        boost::ref(request)) ) ) );
   } else {
     request.add_error("Error: " + err.message());
   }

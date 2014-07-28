@@ -22,9 +22,10 @@
  */
 
 #include "sqlite_database.hpp"
+#include <boost/asio.hpp>
 
 sqlite_database::sqlite_database(std::string databaseFile)
-  : databaseFile(databaseFile), 
+  : databaseFile(databaseFile),
     logger("sqlite")
 {
   int rc = sqlite3_open(databaseFile.c_str(), &db);

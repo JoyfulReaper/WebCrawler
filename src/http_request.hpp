@@ -139,7 +139,7 @@ public:
 
   void reset_errors()
   {
-    for(auto it = errors.begin(); it != errors.end(); ++it)
+    while(!errors.empty())
       errors.pop_back();
   }
 
