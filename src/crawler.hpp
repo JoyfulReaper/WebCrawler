@@ -27,6 +27,7 @@
 #include <boost/asio.hpp>
 
 using namespace boost;
+class http_request;
 
 class crawler
 {
@@ -45,7 +46,6 @@ private:
   asio::io_service io_service;
   std::size_t num_threads = 2;
   std::string databaseFile = "UNSET";
-
   
 };
 

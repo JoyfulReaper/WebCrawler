@@ -24,6 +24,7 @@
 #include "crawler.hpp"
 #include "http_client.hpp"
 #include "http_request.hpp"
+#include "sqlite_database.hpp"
 #include <iostream>
 #include <boost/thread/thread.hpp>
 
@@ -39,25 +40,27 @@ crawler::~crawler()
  
 void crawler::start()
 {
+  sqlite_database db("test.db");
   thread_group threads;
+  asio::io_service::work work(io_service);
   http_client client(io_service);
-  
-  http_request r("google.com");
-  client.make_request(r);
   
   for(std::size_t i = 0; i < num_threads; i++)
     threads.create_thread(boost::bind(&asio::io_service::run, &io_service));
   
-  io_service.run();
+  http_request r("www.reddit.com");
+  io_service.post(boost::bind(&http_client::make_request, &client, boost::ref(r)));
+  
+  sleep(10);
+  io_service.stop();
+  //io_service.run();
   threads.join_all();
   
-  auto ers = r.get_errors();
-  for(auto &er : ers)
-    std::cout << er << std::endl;
+  db.add_links(r);
   
-  auto links = r.get_links();
-  for(auto &link : links)
-    std::cout << link << std::endl;
+  //auto links = r.get_links();
+  //for(auto &link : links)
+  //  std::cout << link << std::endl;
   
   return;
 }

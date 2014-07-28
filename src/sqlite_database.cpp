@@ -24,15 +24,54 @@
 #include "sqlite_database.hpp"
 
 sqlite_database::sqlite_database(std::string databaseFile)
-  : databaseFile(databaseFile)
+  : databaseFile(databaseFile), 
+    logger("sqlite")
 {
-  int rc = sqlite3_open(databaseFile.c_str());
+  int rc = sqlite3_open(databaseFile.c_str(), &db);
   if(rc)
-    throw("Can't open database: " << databaseFile);
+    throw("Can't open database: " + databaseFile);
 }
 
 sqlite_database::~sqlite_database()
 {
   if(db)
     sqlite3_close(db);
+}
+
+void sqlite_database::add_links(http_request &request)
+{
+  std::string protocol;
+  std::string domain;
+  std::string path;
+  
+  auto links = request.get_links();
+  for(auto &link : links)
+  {
+    std::cout << link << std::endl;
+    std::size_t found = link.find("https://");
+    if(found != std::string::npos)
+      protocol = "https";
+    else
+      protocol = "http";
+      
+    found = link.find("://");
+    if(found != std::string::npos)
+      link = link.substr(found + 3, link.length());
+    
+    found = link.find("/");
+    if(found != std::string::npos)
+    {
+      domain = link.substr(0, found);
+      path = link.substr(found, link.length());
+    } else {
+      domain = link;
+      path = "/";
+    }
+    
+    std::string sql = "INSERT INTO LINKS (domain,path,protocol) " \
+      "VALUES ('" + domain + "', '" + path + "', '" + protocol + "');";
+   
+   
+   logger.trace("SQL: " + sql); 
+  }
 }

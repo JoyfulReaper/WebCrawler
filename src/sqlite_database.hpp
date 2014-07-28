@@ -26,6 +26,8 @@
 
 #include <sqlite3.h>
 #include <string>
+#include "http_request.hpp"
+#include "logger/logger.hpp"
 
 class sqlite_database
 {
@@ -34,9 +36,12 @@ public:
 
   virtual ~sqlite_database();
   
+  void add_links(http_request &request);
+  
 private:
   sqlite3 *db;
   std::string databaseFile;
+  Logger logger;
 };
 
 #endif
