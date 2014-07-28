@@ -76,7 +76,8 @@ void http_client::make_request(
     request_stream << "Host: " << request->get_server() << "\r\n";
     request_stream << "Accept: */*\r\n";
     request_stream << "Connection: close\r\n\r\n";
-  } else if (request->get_request_type() == RequestType::HEAD)  // Head request
+  } else if (request->get_request_type() == RequestType::HEAD || 
+              request->get_request_type() == RequestType::CRAWL)
   {
     request_stream << "HEAD " << request->get_path() << " HTTP/1.0\r\n";
     request_stream << "User-Agent: https://github.com/JoyfulReaper/WebCrawler\r\n";
@@ -185,13 +186,21 @@ void http_client::handle_read_headers(
     {
       if(DEBUG)
         logger.debug(header);
-        
+      std::size_t found = std::string::npos;
       request->add_header(header + "\n");
+      found = header.find("Content-Type: text/html");
+      if(found != std::string::npos && request->get_request_type() == RequestType::CRAWL)
+      {
+        request->set_request_type(RequestType::GET);
+        request->reset_buffers();
+        request->reset_errors();
+        make_request(request);
+      }
     }
     
     if(request->get_response_buf().size() > 0)
     {
-      std::cout << header << "\n";
+      //std::cout << header << "\n";
       request->add_header(header);
     }
      
@@ -245,7 +254,7 @@ void http_client::handle_read_content(
   s_request request)
 {
   if(!err)
-  {
+  {    
     std::ostringstream ss;
     ss << &request->get_response_buf();
     request->get_data().append(ss.str());

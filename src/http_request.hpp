@@ -30,7 +30,7 @@
 #include <vector>
 #include <logger/logger.hpp>
 
-enum class RequestType { HEAD, GET };
+enum class RequestType { HEAD, GET, CRAWL };
 
 class http_request
 {

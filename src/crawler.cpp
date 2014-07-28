@@ -48,8 +48,11 @@ void crawler::start()
   
   for(std::size_t i = 0; i < num_threads; i++)
     threads.create_thread(boost::bind(&asio::io_service::run, &io_service));
-
-
+    
+  std::shared_ptr<http_request> test(new http_request("www.google.com"));
+  test->set_request_type(RequestType::CRAWL);
+  request_queue.push_back(std::move(test));
+  
   while(!request_queue.empty())
   {
     std::shared_ptr<http_request> request = request_queue.front();
@@ -58,6 +61,7 @@ void crawler::start()
     request_queue.pop_front();
   }
   
+  //std::cout << "Request queue is empty!\n";
   sleep(5);
   io_service.stop();
   threads.join_all();

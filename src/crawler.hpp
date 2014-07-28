@@ -25,8 +25,10 @@
 #define _WC_CRAWLER_H_
 
 #include <boost/asio.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 #include <memory>
 #include <deque>
+#include <unordered_map>
 #include "http_request.hpp"
 
 using namespace boost;
@@ -51,6 +53,7 @@ private:
   std::size_t num_threads = 2;
   std::string databaseFile = "UNSET";
   std::deque<std::shared_ptr<http_request>> request_queue;
+  std::unordered_map<std::string, asio::deadline_timer> timers;
 };
 
 #endif
