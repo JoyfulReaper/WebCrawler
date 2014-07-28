@@ -48,15 +48,14 @@ void crawler::start()
   
   for(std::size_t i = 0; i < num_threads; i++)
     threads.create_thread(boost::bind(&asio::io_service::run, &io_service));
-  
-  std::shared_ptr<http_request> req(new http_request("google.com"));
-  request_queue.push_back(std::move(req));
-  for(int i = 0; i < 1; i++)
-  //while(!request_queue.empty())
+
+
+  while(!request_queue.empty())
   {
     std::shared_ptr<http_request> request = request_queue.front();
     io_service.post(boost::bind(&http_client::make_request, &client, (request)));
     io_service.post(strand.wrap(boost::bind(&sqlite_database::add_links, &db, (request))));
+    request_queue.pop_front();
   }
   
   sleep(5);

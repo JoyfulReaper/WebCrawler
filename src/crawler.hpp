@@ -26,7 +26,7 @@
 
 #include <boost/asio.hpp>
 #include <memory>
-#include <vector>
+#include <deque>
 #include "http_request.hpp"
 
 using namespace boost;
@@ -50,7 +50,7 @@ private:
   asio::io_service io_service;
   std::size_t num_threads = 2;
   std::string databaseFile = "UNSET";
-  std::vector<std::shared_ptr<http_request>> request_queue;
+  std::deque<std::shared_ptr<http_request>> request_queue;
 };
 
 #endif
