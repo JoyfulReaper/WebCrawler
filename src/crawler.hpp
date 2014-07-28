@@ -42,8 +42,6 @@ public:
 
   void start();
 
-  http_request get_next_request();
-
   void set_database_name(std::string database) { this->databaseFile = database; }
 
   std::string get_database_name() { return this->databaseFile; }

@@ -24,6 +24,7 @@
 #include "sqlite_database.hpp"
 #include "crawlerException.hpp"
 #include <boost/asio.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 #include <chrono>
 
 sqlite_database::sqlite_database(std::string databaseFile)
@@ -44,13 +45,10 @@ sqlite_database::~sqlite_database()
 }
 
 void sqlite_database::add_links(s_request request)
-{
+{  
   std::string protocol;
   std::string domain;
   std::string path;
-  
-  while(!request->get_completed())
-    sleep(1);
   
   auto links = request->get_links();
   for(auto &link : links)
@@ -126,8 +124,10 @@ bool sqlite_database::get_visited(s_request request)
     errmsg.append(sqlite3_errstr(rc));
     throw(CrawlerException(errmsg));
   }
+  bool ret = sqlite3_column_int(statement, 0);
+  sqlite3_finalize(statement);
   
-  return sqlite3_column_int(statement, 0);
+  return ret;
 }
 
 void sqlite_database::set_visited(s_request request)
@@ -156,7 +156,7 @@ void sqlite_database::set_visited(s_request request)
     errmsg.append(sqlite3_errstr(rc));
     throw(CrawlerException(errmsg));
   }
-  
+  sqlite3_finalize(statement);
   set_last_visited(request);
   return;
 }
@@ -192,5 +192,42 @@ void sqlite_database::set_last_visited(s_request request)
     errmsg.append(sqlite3_errstr(rc));
     throw(CrawlerException(errmsg));
   }
+  sqlite3_finalize(statement);
   return;
+}
+
+std::vector<s_request> sqlite_database::fill_queue()
+{
+  std::vector<s_request> requests;
+  sqlite3_stmt *statement;
+  int rc;
+  
+  std::string sql = "SELECT domain,path FROM Links WHERE visited = '0' LIMIT 5;";
+  rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
+  if(rc != SQLITE_OK)
+  {
+    std::string errmsg = "sql_fill: ";
+    errmsg.append(sqlite3_errstr(rc));
+    throw(CrawlerException(errmsg));
+  }
+  
+  rc = sqlite3_step(statement);
+  while(rc != SQLITE_DONE)
+  {
+    if(rc == SQLITE_ROW)
+    {
+      std::string domain = reinterpret_cast<const char*>(sqlite3_column_text(statement, 0));
+      std::string path = reinterpret_cast<const char*>(sqlite3_column_text(statement, 1));
+      
+      requests.push_back(s_request (new http_request(domain, path)));
+      rc = sqlite3_step(statement);
+    } else {
+      std::string errmsg = "sql_fill: ";
+      errmsg.append(sqlite3_errstr(rc));
+      throw(CrawlerException(errmsg));
+    }
+  }
+  
+  sqlite3_finalize(statement);
+  return requests;
 }

@@ -27,6 +27,7 @@
 #include "sqlite_database.hpp"
 #include <iostream>
 #include <boost/thread/thread.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 
  
 crawler::crawler()
@@ -49,25 +50,33 @@ void crawler::start()
   for(std::size_t i = 0; i < num_threads; i++)
     threads.create_thread(boost::bind(&asio::io_service::run, &io_service));
     
-  std::shared_ptr<http_request> test(new http_request("www.google.com", "/services/"));
-  test->set_request_type(RequestType::CRAWL);
-  request_queue.push_back(std::move(test));
+  //std::shared_ptr<http_request> test(new http_request("www.google.com", "/services/"));
+  //test->set_request_type(RequestType::CRAWL);
+  //request_queue.push_back(std::move(test));
   
+  auto fill = db.fill_queue();
+  for(auto &req : fill)
+    request_queue.push_back(req);
+  
+  std::shared_ptr<http_request> request;
   while(!request_queue.empty())
   {
-    std::shared_ptr<http_request> request = request_queue.front();
-    
+    request = request_queue.front();
     if(!db.get_visited(request))
     {
       io_service.post(boost::bind(&http_client::make_request, &client, request));
-      io_service.post(strand.wrap(boost::bind(&sqlite_database::set_visited, &db, request)));
-      io_service.post(strand.wrap(boost::bind(&sqlite_database::add_links, &db, request)));
+      while(!request->get_completed())
+      {
+        sleep(1);
+      }
+        io_service.post(strand.wrap(boost::bind(&sqlite_database::set_visited, &db, request)));
+        io_service.post(strand.wrap(boost::bind(&sqlite_database::add_links, &db, request)));
     }
     request_queue.pop_front();
   }
   
-  //std::cout << "Request queue is empty!\n";
-  sleep(5);
+  std::cout << "Done?";
+  sleep(3);
   io_service.stop();
   threads.join_all();
   

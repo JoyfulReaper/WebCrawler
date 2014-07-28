@@ -27,6 +27,7 @@
 #include <sqlite3.h>
 #include <string>
 #include <memory>
+#include <vector>
 #include "http_request.hpp"
 #include "logger/logger.hpp"
 
@@ -47,6 +48,8 @@ public:
   bool get_visited(s_request request);
 
   void set_last_visited(s_request request);
+
+  std::vector<s_request> fill_queue();
   
 private:
   std::string databaseFile;
