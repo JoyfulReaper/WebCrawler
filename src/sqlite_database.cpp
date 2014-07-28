@@ -22,6 +22,7 @@
  */
 
 #include "sqlite_database.hpp"
+#include "crawlerException.hpp"
 #include <boost/asio.hpp>
 #include <chrono>
 
@@ -31,7 +32,7 @@ sqlite_database::sqlite_database(std::string databaseFile)
 {
   int rc = sqlite3_open(databaseFile.c_str(), &db);
   if(rc)
-    throw("Can't open database: " + databaseFile);
+    throw(CrawlerException("Can't open database: " + databaseFile));
     
   logger.setIgnoreLevel(Level::TRACE);
 }
@@ -91,8 +92,9 @@ void sqlite_database::add_links(s_request request)
    {
       if(rc != SQLITE_CONSTRAINT) // constraint failed
       {
-        logger.debug("ERROR CODE: " + std::to_string(rc));
-        throw("SQLITE ERROR: add_links");
+        std::string errmsg = "sql_add_links: ";
+        errmsg.append(sqlite3_errstr(rc));
+        throw(CrawlerException(errmsg));
       }
    }
    
@@ -112,15 +114,17 @@ bool sqlite_database::get_visited(s_request request)
   rc= sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
   if(rc != SQLITE_OK)
   {
-    logger.debug("ERROR CODE: " + std::to_string(rc));
-    throw("SQLITE ERROR");
+    std::string errmsg = "sql_get_vist: ";
+    errmsg.append(sqlite3_errstr(rc));
+    throw(CrawlerException(errmsg));
   }
   
   rc = sqlite3_step(statement);
   if(rc != SQLITE_OK && rc != SQLITE_ROW)
   {
-    logger.debug("get_visited ERROR CODE: " + std::to_string(rc));
-    throw("SQLITE ERROR: get_visited");
+    std::string errmsg = "sql_get_vist: ";
+    errmsg.append(sqlite3_errstr(rc));
+    throw(CrawlerException(errmsg));
   }
   
   return sqlite3_column_int(statement, 0);
@@ -140,15 +144,17 @@ void sqlite_database::set_visited(s_request request)
   rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
   if(rc != SQLITE_OK)
   {
-    logger.debug("ERROR CODE: " + std::to_string(rc));
-    throw("SQLITE ERROR");
+    std::string errmsg = "sql_set_vist: ";
+    errmsg.append(sqlite3_errstr(rc));
+    throw(CrawlerException(errmsg));
   }
   
   rc = sqlite3_step(statement);
   if(rc != SQLITE_DONE)
   {
-    logger.debug("set_visited ERROR CODE: " + std::to_string(rc));
-    throw("SQLITE ERROR: set_visited");
+    std::string errmsg = "sql_set_vist: ";
+    errmsg.append(sqlite3_errstr(rc));
+    throw(CrawlerException(errmsg));
   }
   
   set_last_visited(request);
@@ -174,15 +180,17 @@ void sqlite_database::set_last_visited(s_request request)
   rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
   if(rc != SQLITE_OK)
   {
-    logger.debug("setlate ERROR CODE: " + std::to_string(rc));
-    throw("SQLITE ERROR");
+    std::string errmsg = "sql_set_lvist: ";
+    errmsg.append(sqlite3_errstr(rc));
+    throw(CrawlerException(errmsg));
   }
   
   rc = sqlite3_step(statement);
   if(rc != SQLITE_DONE)
   {
-    logger.debug("set_last_visited ERROR CODE: " + std::to_string(rc));
-    throw("SQLITE ERROR: set_visited");
+    std::string errmsg = "sql_set_lvist: ";
+    errmsg.append(sqlite3_errstr(rc));
+    throw(CrawlerException(errmsg));
   }
   return;
 }
