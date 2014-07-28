@@ -254,6 +254,8 @@ void http_client::handle_read_content(
     asio::async_read(sockets.at(request.get_server()), request.get_response_buf(), asio::transfer_at_least(1),
       strand.wrap(bind(&http_client::handle_read_content, this,
         asio::placeholders::error, boost::ref(request))));
+  } else if (err == asio::error::eof) {
+    request.set_completed(true);     
   } else if (err != asio::error::eof) {
     request.add_error ("Error: " + err.message());
   }

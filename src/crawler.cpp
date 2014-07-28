@@ -51,9 +51,12 @@ void crawler::start()
   http_request r("www.reddit.com");
   io_service.post(boost::bind(&http_client::make_request, &client, boost::ref(r)));
   
-  sleep(10);
+  while(!r.get_completed())
+  {
+    sleep(1);
+  }
+  
   io_service.stop();
-  //io_service.run();
   threads.join_all();
   
   db.add_links(r);

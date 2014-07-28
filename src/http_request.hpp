@@ -143,6 +143,10 @@ public:
       errors.pop_back();
   }
 
+  bool get_completed() { return this->requestCompleted; }
+  
+  void set_completed(bool completed) { this->requestCompleted = completed; }
+
 private:
   RequestType type = RequestType::GET; 
   boost::asio::streambuf response_buf;
@@ -156,6 +160,7 @@ private:
   std::vector<std::string> headers;
   std::string data;
   std::string request;
+  bool requestCompleted = false;
   Logger logger;
   
   void search_for_links(GumboNode *node, std::vector<std::string> &links);

@@ -78,7 +78,7 @@ void sqlite_database::add_links(http_request &request)
    
    if(rc != SQLITE_OK)
    {
-      if(rc != 19) // constraint failed
+      if(rc != SQLITE_CONSTRAINT) // constraint failed
       {
         throw("SQLITE ERROR: add_links");
       }
