@@ -30,6 +30,8 @@ sqlite_database::sqlite_database(std::string databaseFile)
   int rc = sqlite3_open(databaseFile.c_str(), &db);
   if(rc)
     throw("Can't open database: " + databaseFile);
+    
+  logger.setIgnoreLevel(Level::TRACE);
 }
 
 sqlite_database::~sqlite_database()
@@ -47,17 +49,12 @@ void sqlite_database::add_links(http_request &request)
   auto links = request.get_links();
   for(auto &link : links)
   {
-    //std::cout << link << std::endl;
     std::size_t found = link.find("://");
     if(found != std::string::npos)
     {
-      
-    }
-      
-      
-    found = link.find("://");
-    if(found != std::string::npos)
       protocol = link.substr(0, found);
+      link = link.substr(found + 3, link.length());
+    }
     else
       protocol = "http";
       
@@ -77,7 +74,7 @@ void sqlite_database::add_links(http_request &request)
       path = "/";
     }
     
-    std::string sql = "INSERT INTO LINKS (domain,path,protocol) " \
+    std::string sql = "INSERT INTO Links (domain,path,protocol) " \
       "VALUES ('" + domain + "', '" + path + "', '" + protocol + "');";
    
    logger.trace("SQL: " + sql);
@@ -89,8 +86,8 @@ void sqlite_database::add_links(http_request &request)
    {
       if(rc != SQLITE_CONSTRAINT) // constraint failed
       {
+        logger.debug("ERROR CODE: " + std::to_string(rc));
         throw("SQLITE ERROR: add_links");
-        //std::cout << err << std::endl;
       }
    }
    
@@ -98,7 +95,55 @@ void sqlite_database::add_links(http_request &request)
   return;
 }
 
+bool sqlite_database::get_visited(http_request &request)
+{
+  sqlite3_stmt *statement;
+  int rc;
+  
+  std::string sql = "SELECT visited FROM Links WHERE domain = '" \
+    + request.get_server() + "' AND path = '" + request.get_path() + \
+    "' AND protocol = '" + request.get_protocol() + "';";
+
+  rc= sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
+  if(rc != SQLITE_OK)
+  {
+    logger.debug("ERROR CODE: " + std::to_string(rc));
+    throw("SQLITE ERROR");
+  }
+  
+  rc = sqlite3_step(statement);
+  if(rc != SQLITE_DONE)
+  {
+    logger.debug("ERROR CODE: " + std::to_string(rc));
+    throw("SQLITE ERROR: get_visited");
+  }
+  
+  return sqlite3_column_int(statement, 0);
+}
+
 void sqlite_database::set_visited(http_request &request)
 {
+  sqlite3_stmt *statement;
+  int rc;
   
+  std::string sql = "UPDATE Links SET visited = '1' WHERE domain = '" \
+    + request.get_server() + "' AND path = '" + request.get_path() + \
+    "' AND protocol = '" + request.get_protocol() + "';";
+  
+  std::cout << sql;
+  
+  rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
+  if(rc != SQLITE_OK)
+  {
+    logger.debug("ERROR CODE: " + std::to_string(rc));
+    throw("SQLITE ERROR");
+  }
+  
+  rc = sqlite3_step(statement);
+  
+  if(rc != SQLITE_DONE)
+  {
+    logger.debug("ERROR CODE: " + std::to_string(rc));
+    throw("SQLITE ERROR: set_visited");
+  }
 }

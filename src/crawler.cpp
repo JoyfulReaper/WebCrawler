@@ -40,7 +40,11 @@ crawler::~crawler()
  
 void crawler::start()
 {
+  http_request rq("www.blah.com", "/services/");
   sqlite_database db("test.db");
+  db.set_visited(rq);
+  
+  return;
   thread_group threads;
   asio::io_service::work work(io_service);
   http_client client(io_service);
@@ -48,7 +52,7 @@ void crawler::start()
   for(std::size_t i = 0; i < num_threads; i++)
     threads.create_thread(boost::bind(&asio::io_service::run, &io_service));
   
-  http_request r("www.reddit.com");
+  http_request r("www.google.com");
   io_service.post(boost::bind(&http_client::make_request, &client, boost::ref(r)));
   
   while(!r.get_completed())

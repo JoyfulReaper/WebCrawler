@@ -40,7 +40,7 @@ public:
   
   void set_visited(http_request &request);
   
-  bool get_visisted();
+  bool get_visited(http_request &request);
   
   
   
