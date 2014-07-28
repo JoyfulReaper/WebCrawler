@@ -38,6 +38,12 @@ public:
   
   void add_links(http_request &request);
   
+  void set_visited(http_request &request);
+  
+  bool get_visisted();
+  
+  
+  
 private:
   sqlite3 *db;
   std::string databaseFile;

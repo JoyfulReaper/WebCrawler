@@ -146,6 +146,18 @@ public:
   bool get_completed() { return this->requestCompleted; }
   
   void set_completed(bool completed) { this->requestCompleted = completed; }
+  
+  bool set_protocol(std::string proto)
+  {
+    if(proto == "http" || proto == "https")
+    {
+      this->protocol = proto;
+      return true;
+    }
+  return false;
+  }
+  
+  std::string get_protocol() { return this->protocol; }
 
 private:
   RequestType type = RequestType::GET; 
@@ -162,6 +174,7 @@ private:
   std::string request;
   bool requestCompleted = false;
   Logger logger;
+  std::string protocol = "http";
   
   void search_for_links(GumboNode *node, std::vector<std::string> &links);
   

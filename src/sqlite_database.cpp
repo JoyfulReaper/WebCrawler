@@ -48,15 +48,24 @@ void sqlite_database::add_links(http_request &request)
   for(auto &link : links)
   {
     //std::cout << link << std::endl;
-    std::size_t found = link.find("https://");
+    std::size_t found = link.find("://");
     if(found != std::string::npos)
-      protocol = "https";
-    else
-      protocol = "http";
+    {
+      
+    }
+      
       
     found = link.find("://");
     if(found != std::string::npos)
-      link = link.substr(found + 3, link.length());
+      protocol = link.substr(0, found);
+    else
+      protocol = "http";
+      
+    if(protocol != "http")
+    {
+      logger.debug("sqlite: Dropping: " + link);
+      break;
+    }
     
     found = link.find("/");
     if(found != std::string::npos)
@@ -81,9 +90,15 @@ void sqlite_database::add_links(http_request &request)
       if(rc != SQLITE_CONSTRAINT) // constraint failed
       {
         throw("SQLITE ERROR: add_links");
+        //std::cout << err << std::endl;
       }
    }
    
   }
   return;
+}
+
+void sqlite_database::set_visited(http_request &request)
+{
+  
 }
