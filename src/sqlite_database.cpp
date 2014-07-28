@@ -47,7 +47,7 @@ void sqlite_database::add_links(http_request &request)
   auto links = request.get_links();
   for(auto &link : links)
   {
-    std::cout << link << std::endl;
+    //std::cout << link << std::endl;
     std::size_t found = link.find("https://");
     if(found != std::string::npos)
       protocol = "https";
@@ -71,7 +71,19 @@ void sqlite_database::add_links(http_request &request)
     std::string sql = "INSERT INTO LINKS (domain,path,protocol) " \
       "VALUES ('" + domain + "', '" + path + "', '" + protocol + "');";
    
+   logger.trace("SQL: " + sql);
    
-   logger.trace("SQL: " + sql); 
+   char *err = 0;
+   int rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
+   
+   if(rc != SQLITE_OK)
+   {
+      if(rc != 19) // constraint failed
+      {
+        throw("SQLITE ERROR: add_links");
+      }
+   }
+   
   }
+  return;
 }
