@@ -57,13 +57,23 @@ void http_request::search_for_links(GumboNode *node, std::vector<std::string> &l
   if(node->v.element.tag == GUMBO_TAG_A &&
     (href = gumbo_get_attribute(&node->v.element.attributes, "href")))
   { // Minimal normilization
+    std::size_t found = std::string::npos;
+    
     std::string link = href->value;
     if(link[0] == '/')
       link.insert(0, get_server());
 
+    // This one is iffy :(
+    if(link.find(get_server()) == std::string::npos && link.find("://") == std::string::npos)
+    {
+      link.insert(0, get_server() + "/");
+      if(DEBUG)
+        logger.debug("Fixing link: " + link);
+    }
+
     boost::to_lower(link);
 
-    std::size_t found = link.find("#");
+    found = link.find("#");
     if(found != std::string::npos)
     {
       if(DEBUG)
@@ -106,6 +116,7 @@ void http_request::search_for_links(GumboNode *node, std::vector<std::string> &l
         logger.debug("Normailzed: " + link);
     }
     
+    std::cout << link << std::endl;
     links.push_back(link);
   }
   

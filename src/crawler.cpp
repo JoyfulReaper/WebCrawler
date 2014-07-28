@@ -40,22 +40,18 @@ crawler::~crawler()
  
 void crawler::start()
 {
-  http_request rq("www.blah.com", "/services/");
-  sqlite_database db("test.db");
-  db.set_visited(rq);
-  
-  return;
+  http_request request("www.w3schools.com", "/sql/sql_like.asp");  
   thread_group threads;
   asio::io_service::work work(io_service);
   http_client client(io_service);
+  sqlite_database db("test.db");
   
   for(std::size_t i = 0; i < num_threads; i++)
     threads.create_thread(boost::bind(&asio::io_service::run, &io_service));
   
-  http_request r("www.google.com");
-  io_service.post(boost::bind(&http_client::make_request, &client, boost::ref(r)));
+  io_service.post(boost::bind(&http_client::make_request, &client, boost::ref(request)));
   
-  while(!r.get_completed())
+  while(!request.get_completed())
   {
     sleep(1);
   }
@@ -63,7 +59,7 @@ void crawler::start()
   io_service.stop();
   threads.join_all();
   
-  db.add_links(r);
+  db.add_links(request);
   
   //auto links = r.get_links();
   //for(auto &link : links)
