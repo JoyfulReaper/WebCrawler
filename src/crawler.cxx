@@ -36,22 +36,7 @@ Crawler::~Crawler()
  
 void Crawler::start()
 {
-  process_robots("www.wikipedia.org");
-  //http_request r("http://www.google.com", "/robots.txt");
-  //http_client c(io_service, r);
   
-  //http_request r2("www.reddit.com");
-  //http_client c2(io_service, r2);
-  
-  //http_request r3("www.slashdot.org");
-  //http_client c3(io_service, r3);
-  
-  //http_request r4("www.facebook.com");
-  //http_client c4(io_service, r4);
-  
-  //io_service.run();
-  
-  //std::cout << r.get_data() << std::endl;
   
   return;
 }
@@ -67,8 +52,6 @@ void Crawler::process_robots(std::string domain)
   std::string line;
   bool foundUserAgent = false;
   std::size_t found;
-  
-  io_service.run(); // TESTING ONLY
   
   std::istringstream ss(r.get_data());
   while(!ss.eof())
@@ -93,6 +76,4 @@ void Crawler::process_robots(std::string domain)
       std::cout << "Disallow: " << disallow << std::endl;
     }
   }
-  
-  sleep(3); // TESTING ONLY
 }

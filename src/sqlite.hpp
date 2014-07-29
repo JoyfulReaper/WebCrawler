@@ -20,3 +20,32 @@
  * @file sqlite.hpp
  * @author Kyle Givler
  */
+
+#ifndef _SQLITE_DATABASE_H_
+#define _SQLITE_DATABASE_H_
+
+#include <sqlite3.h>
+#include <vector>
+#include "logger/logger.hpp"
+
+class sqlite
+{
+public:
+  sqlite(std::string databaseFile);
+
+  virtual ~sqlite();
+  
+  void add_links(std::vector<std::string> links);
+  
+  bool get_visited(std::string domain, std::string path, std::string protocol);
+  
+  void set_visited(std::string domain, std::string path, std::string protocol);
+
+private:
+  std::string databaseFile;
+  sqlite3 *db;
+  Logger logger;
+};
+
+
+#endif
