@@ -48,8 +48,6 @@ public:
   http_client(asio::io_service &io_service, http_request &request);
   
   virtual ~http_client();
-  
-  void make_request(http_request &request);
 
 private:
   asio::io_service &io_service;
@@ -59,6 +57,8 @@ private:
   Logger logger;
   asio::ssl::context sslctx;
   asio::ssl::stream<tcp::socket&> ssl_sock;
+
+  void make_request(http_request &request);
 
   void handle_resolve(
     const system::error_code &err, 

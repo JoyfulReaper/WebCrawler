@@ -39,14 +39,14 @@ void Crawler::start()
   http_request r("https://www.google.com");
   http_client c(io_service, r);
   
-  //http_request r2("www.reddit.com");
-  //http_client c2(io_service, r2);
+  http_request r2("www.reddit.com");
+  http_client c2(io_service, r2);
   
-  //http_request r3("www.slashdot.com");
-  //http_client c3(io_service, r3);
+  http_request r3("www.slashdot.org");
+  http_client c3(io_service, r3);
   
-  //http_request r4("www.weather.com");
-  //http_client c4(io_service, r4);
+  http_request r4("www.facebook.com");
+  http_client c4(io_service, r4);
   
   io_service.run();
   

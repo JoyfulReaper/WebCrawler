@@ -282,6 +282,10 @@ void http_client::handle_read_headers(
         if(found != std::string::npos)
         {
           std::string location = header.substr(10, header.length());
+          found = location.find("https://");
+          if(found != std::string::npos)
+            request.set_protocol("https");
+            
           found = location.find("://");
           if(found)
           {
