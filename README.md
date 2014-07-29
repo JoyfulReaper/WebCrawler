@@ -20,5 +20,5 @@ You can probably install all of these through your package manager:
 Boost (http://boost.org)  
 SQLite3  (http://sqlite.org)  
 Lua 5.2 (http://lua.org)  
-OpenSSL (http://www.openssl.org) 
+OpenSSL (http://www.openssl.org)  
 Gumbo (https://github.com/google/gumbo-parser)
