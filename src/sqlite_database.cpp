@@ -65,7 +65,7 @@ void sqlite_database::add_links(s_request request)
     if(protocol != "http")
     {
       logger.debug("sqlite: Dropping: " + link);
-      break;
+      continue;
     }
     
     found = link.find("/");
@@ -202,7 +202,7 @@ std::vector<s_request> sqlite_database::fill_queue()
   sqlite3_stmt *statement;
   int rc;
   
-  std::string sql = "SELECT domain,path FROM Links WHERE visited = '0' LIMIT 5;";
+  std::string sql = "SELECT domain,path FROM Links WHERE visited = '0' LIMIT 100;";
   rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
   if(rc != SQLITE_OK)
   {

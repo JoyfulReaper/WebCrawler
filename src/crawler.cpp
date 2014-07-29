@@ -56,7 +56,10 @@ void crawler::start()
   
   auto fill = db.fill_queue();
   for(auto &req : fill)
+  {
+    req->set_request_type(RequestType::CRAWL);
     request_queue.push_back(req);
+  }
   
   std::shared_ptr<http_request> request;
   while(!request_queue.empty())
@@ -64,13 +67,21 @@ void crawler::start()
     request = request_queue.front();
     if(!db.get_visited(request))
     {
+      int count = 0;
       io_service.post(boost::bind(&http_client::make_request, &client, request));
       while(!request->get_completed())
       {
+        count++;
         sleep(1);
+        if(count == 30);
+        {
+          std::cout << "Timeout: " << request->get_server() << request->get_path();
+          sleep(2);
+          break;
+        }
       }
-        io_service.post(strand.wrap(boost::bind(&sqlite_database::set_visited, &db, request)));
-        io_service.post(strand.wrap(boost::bind(&sqlite_database::add_links, &db, request)));
+      io_service.post(strand.wrap(boost::bind(&sqlite_database::set_visited, &db, request)));
+      io_service.post(strand.wrap(boost::bind(&sqlite_database::add_links, &db, request)));
     }
     request_queue.pop_front();
   }
