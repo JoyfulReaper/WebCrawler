@@ -40,20 +40,19 @@ class http_request;
 using boost::asio::ip::tcp;
 using namespace boost;
 
-typedef std::shared_ptr<http_request> s_request;
 
 class http_client
 {
 public:
-  http_client(asio::io_service &io_service);
+  http_client(asio::io_service &io_service, http_request &request);
   
   virtual ~http_client();
   
-  void make_request(s_request request);
+  void make_request(http_request &request);
 
 private:
   asio::io_service &io_service;
-  std::map<std::string, tcp::socket> sockets;
+  tcp::socket socket;
   asio::strand strand;
   tcp::resolver resolver;
   Logger logger;
@@ -61,27 +60,27 @@ private:
   void handle_resolve(
     const system::error_code &err, 
     tcp::resolver::iterator endpoint_it, 
-    s_request request);
+    http_request &request);
 
   void handle_connect(
     const system::error_code &err, 
-    s_request request);
+    http_request &request);
 
   void handle_write_request(
     const system::error_code &err, 
-    s_request request);
+    http_request &request);
 
   void handle_read_status_line(
     const system::error_code &err, 
-    s_request request);
+    http_request &request);
 
   void handle_read_headers(
     const system::error_code &err, 
-    s_request request);
+    http_request &request);
 
   void handle_read_content(
     const system::error_code &err, 
-    s_request request);
+    http_request &request);
 };
 
 #endif

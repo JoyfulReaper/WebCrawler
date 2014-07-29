@@ -205,7 +205,7 @@ public:
   std::string get_protocol() { return this->protocol; }
 
 private:
-  RequestType type = RequestType::GET; 
+  RequestType type = RequestType::GET;
   boost::asio::streambuf response_buf;
   boost::asio::streambuf request_buf;
   std::vector<std::string> errors;

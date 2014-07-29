@@ -31,7 +31,7 @@
 #include <vector>
 #include <iostream>
 
-enum class Level {TRACE, DEBUG, INFO, WARN, ERROR, SEVERE};
+enum class Level {NONE, TRACE, DEBUG, INFO, WARN, ERROR, SEVERE};
 
 class Logger
 {
