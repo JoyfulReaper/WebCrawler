@@ -26,7 +26,10 @@
 
 #include <sqlite3.h>
 #include <vector>
+#include <tuple>
 #include "logger/logger.hpp"
+
+typedef std::vector<std::tuple<std::string,std::string,std::string>> v_links;
 
 class sqlite
 {
@@ -40,6 +43,8 @@ public:
   bool get_visited(std::string domain, std::string path, std::string protocol);
   
   void set_visited(std::string domain, std::string path, std::string protocol);
+  
+  v_links get_links(std::size_t num);
 
 private:
   std::string databaseFile;

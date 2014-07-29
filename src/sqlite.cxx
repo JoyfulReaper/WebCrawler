@@ -166,3 +166,45 @@ void sqlite::set_visited(
   sqlite3_finalize(statement);
   return;
 }
+
+v_links sqlite::get_links(std::size_t num)
+{
+  v_links links;
+  sqlite3_stmt *statement;
+  
+  std::string sql = "SELECT domain,path,protocol FROM Links WHERE visited = '0'" \
+    "AND blacklisted = '0' LIMIT " + std::to_string(num) + ";";
+    
+  int rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
+  if(rc != SQLITE_OK)
+  {
+    sqlite3_finalize(statement);
+    std::string errmsg = "get_links: ";
+    errmsg.append(sqlite3_errstr(rc));
+    throw(CrawlerException(errmsg));
+  }
+  
+  rc = sqlite3_step(statement);
+  while(rc != SQLITE_DONE)
+  {
+    if(rc == SQLITE_ROW)
+    {
+      std::string domain = reinterpret_cast<const char*>(sqlite3_column_text(statement, 0));
+      std::string path = reinterpret_cast<const char*>(sqlite3_column_text(statement, 1));
+      std::string proto = reinterpret_cast<const char*>(sqlite3_column_text(statement, 2));
+      
+      std::tuple<std::string,std::string,std::string> link(domain,path,proto);
+      links.push_back(link);
+      
+      rc = sqlite3_step(statement);
+    } else {
+      sqlite3_finalize(statement);
+      std::string errmsg = "sql_fill: ";
+      errmsg.append(sqlite3_errstr(rc));
+      throw(CrawlerException(errmsg));
+    }
+  }
+  
+  sqlite3_finalize(statement);
+  return links;
+}
