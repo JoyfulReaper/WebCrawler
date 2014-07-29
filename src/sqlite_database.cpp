@@ -92,6 +92,7 @@ void sqlite_database::add_links(s_request request)
       {
         std::string errmsg = "sql_add_links: ";
         errmsg.append(sqlite3_errstr(rc));
+        errmsg.append(" " + sql);
         throw(CrawlerException(errmsg));
       }
    }
