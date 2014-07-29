@@ -26,9 +26,9 @@
 #include <cstdlib>
 
 http_request::http_request(std::string server, std::string path, unsigned int port)
-  : port(port),
-    server(server),
+  : server(server),
     path(path),
+    port(port),
     logger("http_request")
 {
   logger.setIgnoreLevel(Level::NONE);

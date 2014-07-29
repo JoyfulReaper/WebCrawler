@@ -207,13 +207,13 @@ public:
   std::string get_protocol() { return this->protocol; }
 
 private:
+  std::string server = "NULL";
+  std::string path = "NULL";
+  unsigned int port = 80;
   RequestType type = RequestType::GET;
   boost::asio::streambuf response_buf;
   boost::asio::streambuf request_buf;
   std::vector<std::string> errors;
-  unsigned int port = 80;
-  std::string server = "NULL";
-  std::string path = "NULL ";
   std::string http_version = "NULL";
   unsigned int status_code = 0;
   std::vector<std::string> headers;

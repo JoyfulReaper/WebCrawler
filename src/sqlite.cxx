@@ -1,5 +1,5 @@
 /*
- * WebCrawler: crawler.hpp
+ * WebCrawler: sqlite.cxx
  * Copyright (C) 2014 Kyle Givler
  *
  * This program is free software: you can redistribute it and/or modify
@@ -17,35 +17,6 @@
  */
 
 /**
- * @file crawler.hpp
+ * @file sqlite.cxx
  * @author Kyle Givler
  */
-
-#ifndef _WC_CRAWLER_H_
-#define _WC_CRAWLER_H_
-
-#include <boost/asio.hpp>
-#include <boost/date_time/posix_time/posix_time.hpp>
-#include <memory>
-#include <deque>
-#include <unordered_map>
-#include "http_request.hpp"
-
-using namespace boost;
-
-class Crawler
-{
-public:
-  Crawler();
-
-  virtual ~Crawler();
-
-  void start();
-  
-  void process_robots(std::string domain);
-
-private:
-  asio::io_service io_service;
-};
-
-#endif

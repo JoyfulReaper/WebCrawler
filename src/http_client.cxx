@@ -42,6 +42,7 @@ http_client::~http_client()
 void http_client::make_request(
   http_request &request)
 {
+  std::cout << "Domain: " << request.get_server() << std::endl;
   std::string domain = request.get_server();
   
   if(domain[0] == '/' && domain[1] == '/')

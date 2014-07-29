@@ -17,7 +17,7 @@
  */
 
 /**
- * @file crawler.cpp
+ * @file crawler.cxx
  * @author Kyle Givler
  */
  
@@ -36,21 +36,63 @@ Crawler::~Crawler()
  
 void Crawler::start()
 {
-  http_request r("https://www.google.com");
-  http_client c(io_service, r);
+  process_robots("www.wikipedia.org");
+  //http_request r("http://www.google.com", "/robots.txt");
+  //http_client c(io_service, r);
   
-  http_request r2("www.reddit.com");
-  http_client c2(io_service, r2);
+  //http_request r2("www.reddit.com");
+  //http_client c2(io_service, r2);
   
-  http_request r3("www.slashdot.org");
-  http_client c3(io_service, r3);
+  //http_request r3("www.slashdot.org");
+  //http_client c3(io_service, r3);
   
-  http_request r4("www.facebook.com");
-  http_client c4(io_service, r4);
+  //http_request r4("www.facebook.com");
+  //http_client c4(io_service, r4);
   
-  io_service.run();
+  //io_service.run();
   
-  //std::cout << r.get_data();
+  //std::cout << r.get_data() << std::endl;
   
   return;
+}
+
+void Crawler::process_robots(std::string domain)
+{
+  // Follow SOME robots.txt rules...
+  // Not fully compliant
+  
+  http_request r(domain, "/robots.txt");
+  http_client c(io_service, r);
+  
+  std::string line;
+  bool foundUserAgent = false;
+  std::size_t found;
+  
+  io_service.run(); // TESTING ONLY
+  
+  std::istringstream ss(r.get_data());
+  while(!ss.eof())
+  {
+    getline(ss, line);
+    if( (found = line.find("#")) != std::string::npos )
+      line = line.substr(0, found);
+      
+    if( (found = line.find("User-agent: ")) != std::string::npos)
+    {
+      if( (found = line.find("User-agent: *")) != std::string::npos)
+      {
+        foundUserAgent = true;
+      } else {
+        foundUserAgent = false;
+      }
+    }
+    
+    if( foundUserAgent && (found = line.find("Disallow: ")) != std::string::npos)
+    {
+      std::string disallow = line.substr(10, line.length());
+      std::cout << "Disallow: " << disallow << std::endl;
+    }
+  }
+  
+  sleep(3); // TESTING ONLY
 }
