@@ -26,7 +26,9 @@ http_client::http_client(asio::io_service &io_service, http_request &request)
     socket(io_service),
     strand(io_service),
     resolver(io_service),
-    logger("http_client")
+    logger("http_client"),
+    sslctx(asio::ssl::context::sslv23),
+    ssl_sock(socket, sslctx)
 {
   logger.setIgnoreLevel(Level::NONE);
   make_request(request);
@@ -41,21 +43,28 @@ void http_client::make_request(
   http_request &request)
 {
   std::string domain = request.get_server();
+  
+  if(domain[0] == '/' && domain[1] == '/')
+  {
+    logger.trace("Fixing link: " + domain);
+    domain.erase(0,2);
+    domain.insert(0, "http://");
+  }
+  
   std::size_t found = domain.find("://");
   if(found != std::string::npos)
   {
-    std::string proto = domain.substr(0, found + 2);
+    std::string proto = domain.substr(0, found + 3);
     if(proto == "https://")
     {
-      request.add_error("No https support :(");
-      return;
-    } else {
-      domain = domain.substr(found + 3);
-      request.set_server(domain);
-      logger.trace("Converted to: " + domain);
+      logger.trace("Set protocol to https");
+      request.set_protocol("https");
     }
+    domain = domain.substr(found + 3);
+    request.set_server(domain);
+    logger.trace("Converted to: " + domain);
   }
-    
+  
   std::ostream request_stream(&request.get_request_buf());
   
   if(request.get_request().size() > 0) // Request provided
@@ -90,9 +99,19 @@ void http_client::handle_resolve(
 {
   if(!err)
   {
-    asio::async_connect( socket, endpoint_it,
-      strand.wrap( strand.wrap( bind( &http_client::handle_connect, this, 
-        asio::placeholders::error, ref(request) ) ) ) );
+    if(request.get_protocol() == "https")
+    {
+      logger.trace("https resolve");
+      sslctx.set_verify_mode(asio::ssl::verify_none);
+      
+      asio::async_connect( ssl_sock.lowest_layer(), endpoint_it,
+      strand.wrap( bind( &http_client::handle_connect, this, 
+        asio::placeholders::error, ref(request) ) ) );
+    } else {
+      asio::async_connect( socket, endpoint_it,
+        strand.wrap( bind( &http_client::handle_connect, this, 
+          asio::placeholders::error, ref(request) ) ) );
+    }
   } else {
     logger.warn(err.message());
     request.add_error("Error: " + err.message());
@@ -105,7 +124,31 @@ void http_client::handle_connect(
 {
   if(!err)
   {
-    asio::async_write( socket, request.get_request_buf(), 
+    if(request.get_protocol() == "https")
+    {
+      logger.trace("https connect");
+      ssl_sock.async_handshake(asio::ssl::stream_base::client,
+      strand.wrap( bind( &http_client::handle_handshake, this, 
+        asio::placeholders::error, ref(request) ) ) );
+    } else {
+      asio::async_write( socket, request.get_request_buf(), 
+        strand.wrap( bind ( &http_client::handle_write_request, this, 
+          asio::placeholders::error, ref(request) ) ) );
+    }
+  } else {
+    logger.warn(err.message());
+    request.add_error ("Error: " + err.message());
+  }
+}
+
+void http_client::handle_handshake(
+    const system::error_code &err, 
+    http_request &request)
+{
+  if(!err)
+  {
+    logger.trace("https handshake");
+    asio::async_write( ssl_sock, request.get_request_buf(), 
       strand.wrap( bind ( &http_client::handle_write_request, this, 
         asio::placeholders::error, ref(request) ) ) );
   } else {
@@ -120,9 +163,17 @@ void http_client::handle_write_request(
 {
   if(!err)
   {
-    asio::async_read_until( socket, request.get_response_buf(), "\r\n",
-      strand.wrap ( bind ( &http_client::handle_read_status_line, this, asio::placeholders::error,
-      ref(request) ) ) );
+    if(request.get_protocol() == "https")
+    {
+      logger.trace("https write_request");
+      asio::async_read_until( ssl_sock, request.get_response_buf(), "\r\n",
+        strand.wrap ( bind ( &http_client::handle_read_status_line, this, asio::placeholders::error,
+        ref(request) ) ) );
+    } else {
+      asio::async_read_until( socket, request.get_response_buf(), "\r\n",
+        strand.wrap ( bind ( &http_client::handle_read_status_line, this, asio::placeholders::error,
+        ref(request) ) ) );
+    }
   } else {
     logger.warn(err.message());
     request.add_error ("Error: " + err.message());
@@ -140,26 +191,51 @@ void http_client::handle_read_status_line(
     std::string status_message;
     size_t status_code;
     
-    response_stream >> http_version;
-    response_stream >> status_code;
-    request.set_http_version(http_version);
-    request.set_status_code(status_code);
-    
-    std::getline(response_stream, status_message);
-    if(!response_stream || http_version.substr(0, 5) != "HTTP/")
+    if(request.get_protocol() == "https")
     {
-      logger.warn("Invalid HTTP response");
-      request.add_error( "Invalid HTTP response");
-      return;
-    }
-    
-    logger.trace("HTTP Version: " + http_version);
-    logger.trace("Status code: " + std::to_string(status_code));
-    logger.trace("Status message: " + status_message);
-    
-    asio::async_read_until( socket, request.get_response_buf(), "\r\n\r\n",
-      strand.wrap( bind( &http_client::handle_read_headers, this, asio::placeholders::error, 
+      logger.trace("https read_status");
+      response_stream >> http_version;
+      response_stream >> status_code;
+      request.set_http_version(http_version);
+      request.set_status_code(status_code);
+      
+      std::getline(response_stream, status_message);
+      if(!response_stream || http_version.substr(0, 5) != "HTTP/")
+      {
+        logger.warn("SSL Invalid HTTP response");
+        request.add_error( "Invalid HTTP response");
+        return;
+      }
+      
+      logger.trace("HTTP Version: " + http_version);
+      logger.trace("Status code: " + std::to_string(status_code));
+      logger.trace("Status message: " + status_message);
+      
+      asio::async_read_until( ssl_sock, request.get_response_buf(), "\r\n\r\n",
+        strand.wrap ( bind ( &http_client::handle_read_headers, this, asio::placeholders::error,
         ref(request) ) ) );
+    } else {      
+      response_stream >> http_version;
+      response_stream >> status_code;
+      request.set_http_version(http_version);
+      request.set_status_code(status_code);
+      
+      std::getline(response_stream, status_message);
+      if(!response_stream || http_version.substr(0, 5) != "HTTP/")
+      {
+        logger.warn("Invalid HTTP response");
+        request.add_error( "Invalid HTTP response");
+        return;
+      }
+      
+      logger.trace("HTTP Version: " + http_version);
+      logger.trace("Status code: " + std::to_string(status_code));
+      logger.trace("Status message: " + status_message);
+      
+      asio::async_read_until( socket, request.get_response_buf(), "\r\n\r\n",
+        strand.wrap( bind( &http_client::handle_read_headers, this, asio::placeholders::error, 
+          ref(request) ) ) );
+    }
   } else {
     logger.warn(err.message());
     request.add_error ("Error: " + err.message());
@@ -232,12 +308,19 @@ void http_client::handle_read_headers(
       }
       return;
     }
-      
-    asio::async_read( socket, request.get_response_buf(), 
-      asio::transfer_at_least(1), strand.wrap( bind( &http_client::handle_read_content, 
-        this, asio::placeholders::error, ref(request) ) ) );
-    
+    if(request.get_protocol() == "https")
+    {
+      logger.trace("https read_header");
+      asio::async_read( ssl_sock, request.get_response_buf(), 
+        asio::transfer_at_least(1), strand.wrap( bind( &http_client::handle_read_content, 
+          this, asio::placeholders::error, ref(request) ) ) );
+    } else {
+      asio::async_read( socket, request.get_response_buf(), 
+        asio::transfer_at_least(1), strand.wrap( bind( &http_client::handle_read_content, 
+          this, asio::placeholders::error, ref(request) ) ) );
+    }
   } else {
+    logger.warn("Error: " + err.message());
     request.add_error ("Error: " + err.message());
   }
 }
@@ -252,13 +335,23 @@ void http_client::handle_read_content(
     ss << &request.get_response_buf();
     request.get_data().append(ss.str());
 
-    
-    asio::async_read(socket, request.get_response_buf(), asio::transfer_at_least(1),
-      strand.wrap( bind(&http_client::handle_read_content, this,
-        asio::placeholders::error, ref(request) ) ) );
+    if(request.get_protocol() == "https")
+    {
+      //logger.trace("https read_content");
+      asio::async_read(ssl_sock, request.get_response_buf(), asio::transfer_at_least(1),
+        strand.wrap( bind(&http_client::handle_read_content, this,
+          asio::placeholders::error, ref(request) ) ) );
+    } else {
+      asio::async_read(socket, request.get_response_buf(), asio::transfer_at_least(1),
+        strand.wrap( bind(&http_client::handle_read_content, this,
+          asio::placeholders::error, ref(request) ) ) );
+    }
   } else if (err == asio::error::eof) {
-    request.set_completed(true);     
+    request.set_completed(true);
+    logger.trace("Request completed");     
   } else if (err != asio::error::eof) {
+    request.set_completed(true);
+    logger.debug("Content Error: " + err.message());
     request.add_error ("Error: " + err.message());
   }
 }

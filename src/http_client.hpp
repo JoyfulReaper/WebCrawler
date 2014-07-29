@@ -31,6 +31,7 @@
 #define _WC_HTTP_CLIENT_H_
 
 #include <boost/asio.hpp>
+#include <boost/asio/ssl.hpp>
 #include <map>
 #include <memory>
 #include "logger/logger.hpp"
@@ -56,6 +57,8 @@ private:
   asio::strand strand;
   tcp::resolver resolver;
   Logger logger;
+  asio::ssl::context sslctx;
+  asio::ssl::stream<tcp::socket&> ssl_sock;
 
   void handle_resolve(
     const system::error_code &err, 
@@ -63,6 +66,10 @@ private:
     http_request &request);
 
   void handle_connect(
+    const system::error_code &err, 
+    http_request &request);
+
+  void handle_handshake(
     const system::error_code &err, 
     http_request &request);
 

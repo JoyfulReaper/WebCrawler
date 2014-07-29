@@ -194,6 +194,8 @@ public:
     if(proto == "http" || proto == "https")
     {
       this->protocol = proto;
+      if(this->protocol == "https")
+        set_port(443);
       return true;
     }
   return false;
