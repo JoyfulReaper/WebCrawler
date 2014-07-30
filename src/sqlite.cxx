@@ -38,6 +38,8 @@ sqlite::sqlite(std::string databaseFile)
     errmsg.append(sqlite3_errstr(rc));
     throw(CrawlerException(errmsg));
   }
+  
+  logger.setIgnoreLevel(Level::NONE);
 }
 
 sqlite::~sqlite()
@@ -62,9 +64,9 @@ void sqlite::add_links(std::vector<std::string> links)
       protocol = "http"; // assume http
     }
     
-    if(protocol != "http" || protocol != "https")
+    if(protocol != "http" && protocol != "https")
     {
-      logger.trace("Dropping: " + link);
+      logger.trace("SQLite: Dropping: " + link);
       continue;
     }
     
@@ -78,9 +80,10 @@ void sqlite::add_links(std::vector<std::string> links)
     }
     
     std::string sql = "INSERT INTO Links (domain,path,protocol) " \
-      "VALUES = ('" + domain + "', '" + path + "', '" + protocol + "');";
+      "VALUES ('" + domain + "', '" + path + "', '" + protocol + "');";
       
-    //logger.trace(SQL: " + sql);
+    //logger.trace("SQL: " + sql);
+    
     char *err = 0;
     int rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
     
@@ -136,6 +139,38 @@ void sqlite::set_visited(
   std::string path,
   std::string protocol)
 {
+  sqlite3_stmt *statement;
+  
+  std::string sql = "UPDATE Links SET visited = '1' WHERE domain = '" \
+    + domain + "' AND PATH = '" + path + "' AND protocol = '" + protocol + "';";
+    
+  int rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
+  if(rc != SQLITE_OK)
+  {
+    sqlite3_finalize(statement);
+    std::string errmsg = "sql_set_vist: ";
+    errmsg.append(sqlite3_errstr(rc));
+    throw(CrawlerException(errmsg));
+  }
+  
+  rc = sqlite3_step(statement);
+  if(rc != SQLITE_DONE)
+  {
+    sqlite3_finalize(statement);
+    std::string errmsg = "sql_set_vist: ";
+    errmsg.append(sqlite3_errstr(rc));
+    throw(CrawlerException(errmsg));
+  }
+  
+  sqlite3_finalize(statement);
+  set_last_visited(domain, path, protocol);
+}
+
+void sqlite::set_last_visited(
+  std::string domain,
+  std::string path,
+  std::string protocol)
+{
   using namespace std::chrono;
   system_clock::time_point tp = system_clock::now();
   system_clock::duration dtn = tp.time_since_epoch();
@@ -150,7 +185,7 @@ void sqlite::set_visited(
   if(rc != SQLITE_OK)
   {
     sqlite3_finalize(statement);
-    std::string errmsg = "set_visit: ";
+    std::string errmsg = "set_lvisit: ";
     errmsg.append(sqlite3_errstr(rc));
     throw(CrawlerException(errmsg));
   }
@@ -159,7 +194,7 @@ void sqlite::set_visited(
   if(rc != SQLITE_DONE)
   {
     sqlite3_finalize(statement);
-    std::string errmsg = "sql_set_lvist: ";
+    std::string errmsg = "set_lvist: ";
     errmsg.append(sqlite3_errstr(rc));
     throw(CrawlerException(errmsg));
   }

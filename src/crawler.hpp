@@ -29,9 +29,10 @@
 #include <memory>
 #include <deque>
 #include <unordered_map>
-#include "http_request.hpp"
 
 using namespace boost;
+class http_request;
+class sqlite;
 
 class Crawler
 {
@@ -42,10 +43,11 @@ public:
 
   void start();
   
-  void process_robots(std::string domain);
+  void process_robots(std::string domain, sqlite &db);
 
 private:
   asio::io_service io_service;
+  std::deque<std::unique_ptr<http_request>> request_queue;
 };
 
 #endif

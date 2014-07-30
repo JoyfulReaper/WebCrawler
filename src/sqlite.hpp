@@ -44,6 +44,8 @@ public:
   
   void set_visited(std::string domain, std::string path, std::string protocol);
   
+  void set_last_visited(std::string domain, std::string path, std::string protocol);
+  
   v_links get_links(std::size_t num);
 
 private:
