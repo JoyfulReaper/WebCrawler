@@ -49,7 +49,6 @@ public:
   
   virtual ~http_client();
 
-  void make_request(http_request &request);
 private:
   asio::io_service &io_service;
   tcp::socket socket;
@@ -60,6 +59,8 @@ private:
   asio::ssl::stream<tcp::socket&> ssl_sock;
   asio::deadline_timer deadline;
   bool stopped = false;
+
+  void make_request(http_request &request);
 
   void stop(http_request &request);
 

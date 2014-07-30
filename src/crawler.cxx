@@ -45,7 +45,7 @@ void Crawler::start()
   sqlite db("test.db");
   
   //asio::io_service::work work(io_service);
-  auto links = db.get_links(5);
+  auto links = db.get_links(10);
   for(auto &link : links)
   {
     std::unique_ptr<http_request> r(new http_request(
@@ -62,7 +62,6 @@ void Crawler::start()
     http_request *request = request_queue.front().get();
     process_robots(request->get_server(), db);
     http_client c(io_service, *request);
-    c.make_request(*request);
     io_service.run();
     db.add_links(request->get_links());
     db.set_visited(request->get_server(), request->get_path(), request->get_protocol());
@@ -70,7 +69,6 @@ void Crawler::start()
     io_service.reset();
   }
   
-  sleep(3);
   //io_service.stop();
   
   return;
@@ -88,8 +86,7 @@ void Crawler::process_robots(std::string domain, sqlite &db)
   
   http_request r(domain, "/robots.txt");
   http_client c(io_service, r);
-  c.make_request(r);
-  io_service.run();
+  io_service.poll();
   std::string line;
   bool foundUserAgent = false;
   std::size_t found;

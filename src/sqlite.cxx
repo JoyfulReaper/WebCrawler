@@ -24,6 +24,8 @@
 #include "sqlite.hpp"
 #include "crawlerException.hpp"
 #include <chrono>
+#include <unistd.h>
+#include <boost/algorithm/string/replace.hpp>
 
 sqlite::sqlite(std::string databaseFile)
   : databaseFile(databaseFile),
@@ -39,6 +41,10 @@ sqlite::sqlite(std::string databaseFile)
     throw(CrawlerException(errmsg));
   }
   
+  rc = sqlite3_enable_shared_cache(1);
+  if(rc != SQLITE_OK)
+    logger.warn("enable_shared_cache failed");
+  
   logger.setIgnoreLevel(Level::NONE);
 }
 
@@ -53,6 +59,15 @@ void sqlite::add_links(std::vector<std::string> links)
   std::string domain;
   std::string path;
   std::size_t found;
+  
+  std::string sql;
+  int rc;
+  char *err = 0;
+  
+  sql = "BEGIN";
+  rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
+  if(rc != SQLITE_OK)
+    logger.error("BEGIN failed");
   
   for(auto &link : links)
   {
@@ -79,13 +94,14 @@ void sqlite::add_links(std::vector<std::string> links)
       path = "/";
     }
     
-    std::string sql = "INSERT INTO Links (domain,path,protocol) " \
+    path = boost::algorithm::replace_all_copy(path, "'", "''");
+    
+    sql = "INSERT INTO Links (domain,path,protocol) " \
       "VALUES ('" + domain + "', '" + path + "', '" + protocol + "');";
       
-    //logger.trace("SQL: " + sql);
-    
-    char *err = 0;
-    int rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
+    logger.trace("SQL: " + sql);
+
+    rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
     
     if(rc != SQLITE_OK)
     {
@@ -98,6 +114,12 @@ void sqlite::add_links(std::vector<std::string> links)
       }
     }
   }
+  
+  sql = "COMMIT";
+  rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
+  if(rc != SQLITE_OK)
+    logger.error("COMMIT failed");
+  
   return;
 }
 

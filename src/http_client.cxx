@@ -33,6 +33,7 @@ http_client::http_client(asio::io_service &io_service, http_request &request)
     deadline(io_service)
 {
   logger.setIgnoreLevel(Level::NONE);
+  make_request(request);
 }
 
 http_client::~http_client()

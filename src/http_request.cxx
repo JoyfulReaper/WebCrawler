@@ -31,7 +31,7 @@ http_request::http_request(std::string server, std::string path, unsigned int po
     port(port),
     logger("http_request")
 {
-  logger.setIgnoreLevel(Level::NONE);
+  logger.setIgnoreLevel(Level::TRACE);
 }
 
 http_request::~http_request() {}
@@ -86,14 +86,14 @@ void http_request::search_for_links(GumboNode *node, std::vector<std::string> &l
     found = link.find("#");
     if(found != std::string::npos)
     {
-      logger.trace("Dropping link: " + link);
+      logger.debug("Dropping link: " + link);
       return;
     }
 
     found = link.find("?");
     if(found != std::string::npos)
     {
-      logger.trace("Dropping link: " + link);
+      logger.debug("Dropping link: " + link);
       return;
     }
 
@@ -103,12 +103,12 @@ void http_request::search_for_links(GumboNode *node, std::vector<std::string> &l
       if(!isdigit(link[found + 1]))
       {
         link[found + 1] = toupper(link[found + 1]);
-        logger.trace("Normalilzed: " + link);
+        logger.debug("Normalilzed: " + link);
       }
       if(!isdigit(link[found + 2]))
       {
         link[found + 2] = toupper(link[found + 1]);
-        logger.trace("Normalilzed: " + link);
+        logger.debug("Normalilzed: " + link);
       }
     }
 
@@ -118,7 +118,7 @@ void http_request::search_for_links(GumboNode *node, std::vector<std::string> &l
       std::string before = link.substr(0, found);
       std::string after = link.substr(found + 3, link.length());
       link = before + after;
-      logger.trace("Normailzed: " + link);
+      logger.debug("Normailzed: " + link);
     }
     
     logger.trace("Adding link: " + link);
