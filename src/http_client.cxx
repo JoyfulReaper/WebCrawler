@@ -67,7 +67,7 @@ void http_client::make_request(
   if(stopped)
     return;
     
-  deadline.expires_from_now(posix_time::seconds(30));
+  deadline.expires_from_now(posix_time::seconds(10));
   deadline.async_wait(boost::bind(&http_client::stop, this, ref(request)));
   
   std::cout << "Domain: " << request.get_server() << std::endl;
@@ -146,6 +146,7 @@ void http_client::handle_resolve(
           asio::placeholders::error, ref(request) ) ) );
     }
   } else {
+    deadline.cancel();
     logger.warn(err.message());
     request.add_error("Error: " + err.message());
   }
@@ -175,6 +176,7 @@ void http_client::handle_connect(
   } else {
     logger.warn(err.message());
     request.add_error ("Error: " + err.message());
+    deadline.cancel();
   }
 }
 
@@ -194,6 +196,7 @@ void http_client::handle_handshake(
   } else {
     logger.warn(err.message());
     request.add_error ("Error: " + err.message());
+    deadline.cancel();
   }
 }
 
@@ -221,6 +224,7 @@ void http_client::handle_write_request(
   } else {
     logger.warn(err.message());
     request.add_error ("Error: " + err.message());
+    deadline.cancel();
   }
 }
 
@@ -287,6 +291,7 @@ void http_client::handle_read_status_line(
   } else {
     logger.warn(err.message());
     request.add_error ("Error: " + err.message());
+    deadline.cancel();
   }
 }
 
@@ -360,6 +365,7 @@ void http_client::handle_read_headers(
                 request.set_path(resource);
                 request.reset_buffers();
                 request.reset_errors();
+                deadline.cancel();
                 make_request(request);
               }
             }
@@ -382,6 +388,7 @@ void http_client::handle_read_headers(
   } else {
     logger.warn("Error: " + err.message());
     request.add_error ("Error: " + err.message());
+    deadline.cancel();
   }
 }
 
@@ -412,10 +419,12 @@ void http_client::handle_read_content(
     }
   } else if (err == asio::error::eof) {
     request.set_completed(true);
-    logger.trace("Request completed");     
+    logger.trace("Request completed");
+    deadline.cancel();
   } else if (err != asio::error::eof) {
     request.set_completed(true);
     logger.debug("Content Error: " + err.message());
     request.add_error ("Error: " + err.message());
+    deadline.cancel();
   }
 }

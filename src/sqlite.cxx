@@ -45,7 +45,7 @@ sqlite::sqlite(std::string databaseFile)
   if(rc != SQLITE_OK)
     logger.warn("enable_shared_cache failed");
   
-  logger.setIgnoreLevel(Level::NONE);
+  logger.setIgnoreLevel(Level::TRACE);
 }
 
 sqlite::~sqlite()

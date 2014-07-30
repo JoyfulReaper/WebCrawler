@@ -43,8 +43,8 @@ void Crawler::start()
   //NOT READY FOR REAL USE!!!
   
   sqlite db("test.db");
-  
   //asio::io_service::work work(io_service);
+
   auto links = db.get_links(10);
   for(auto &link : links)
   {
@@ -53,26 +53,26 @@ void Crawler::start()
       
     r->set_protocol( std::get<2>(link) );
     r->set_request_type(RequestType::CRAWL);
-    
     request_queue.push_back(std::move(r));
   }
-  
+
   while(!request_queue.empty())
   {
-    http_request *request = request_queue.front().get();
-    process_robots(request->get_server(), db);
-    http_client c(io_service, *request);
+    http_request *r = request_queue.front().get();
+    //http_request *r = new http_request("www.google.com", "/");
+    process_robots(r->get_server(), db);
+    
+    http_client c(io_service, *r);
     io_service.run();
-    db.add_links(request->get_links());
-    db.set_visited(request->get_server(), request->get_path(), request->get_protocol());
+    db.set_visited(r->get_server(), r->get_path(), r->get_protocol());
+    db.add_links(r->get_links());
     request_queue.pop_front();
     io_service.reset();
   }
-  
-  //io_service.stop();
-  
+  sleep(2);
   return;
 }
+
 
 void Crawler::process_robots(std::string domain, sqlite &db)
 {
@@ -83,16 +83,14 @@ void Crawler::process_robots(std::string domain, sqlite &db)
   
   if(!db.should_process_robots(domain))
     return;
-  
+
   http_request r(domain, "/robots.txt");
   http_client c(io_service, r);
-  io_service.poll();
   std::string line;
   bool foundUserAgent = false;
   std::size_t found;
-  
+  io_service.run();
   std::istringstream ss(r.get_data());
-  io_service.reset();
   while(!ss.eof())
   {
     getline(ss, line);
@@ -118,4 +116,5 @@ void Crawler::process_robots(std::string domain, sqlite &db)
     }
   }
   db.set_robot(domain);
+  io_service.reset();
 }
