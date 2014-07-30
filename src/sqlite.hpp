@@ -48,7 +48,7 @@ public:
   
   v_links get_links(std::size_t num);
   
-  void blacklist(std::string server, std::string path, std::string protocol);
+  void blacklist(v_links blacklist);
   
   void set_robot(std::string server);
   

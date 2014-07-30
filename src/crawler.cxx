@@ -45,7 +45,7 @@ void Crawler::start()
   sqlite db("test.db");
   //asio::io_service::work work(io_service);
 
-  auto links = db.get_links(10);
+  auto links = db.get_links(500);
   for(auto &link : links)
   {
     std::unique_ptr<http_request> r(new http_request(
@@ -84,6 +84,8 @@ void Crawler::process_robots(std::string domain, sqlite &db)
   if(!db.should_process_robots(domain))
     return;
 
+  v_links blacklist;
+
   http_request r(domain, "/robots.txt");
   http_client c(io_service, r);
   std::string line;
@@ -111,10 +113,12 @@ void Crawler::process_robots(std::string domain, sqlite &db)
     if( foundUserAgent && (found = line.find("disallow: ")) != std::string::npos)
     {
       std::string disallow = line.substr(10, line.length());
-      //std::cout << disallow << std::endl;
-      db.blacklist(r.get_server(), disallow, r.get_protocol());
+      std::tuple<std::string,std::string,std::string> link(domain, disallow, r.get_protocol());
+      blacklist.push_back(link);
     }
   }
+  if(!blacklist.empty());
+    db.blacklist(blacklist);
   db.set_robot(domain);
   io_service.reset();
 }

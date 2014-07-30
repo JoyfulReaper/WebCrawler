@@ -58,6 +58,7 @@ private:
   asio::ssl::context sslctx;
   asio::ssl::stream<tcp::socket&> ssl_sock;
   asio::deadline_timer deadline;
+  std::size_t redirect_count = 0;
   bool stopped = false;
 
   void make_request(http_request &request);

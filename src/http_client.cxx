@@ -43,11 +43,12 @@ http_client::~http_client()
 
 void http_client::stop(http_request &request)
 {
-  logger.trace("stop");
+  stopped = true;
+  logger.trace("stop: " + request.get_server());
   if(deadline.expires_at() <= asio::deadline_timer::traits_type::now())
   {
-    stopped = true;
-    logger.warn("Set stopped = true!");
+    //stopped = true;
+    //logger.warn("Set stopped = true! " + request.get_server());
     if(request.get_protocol() == "https")
       ssl_sock.lowest_layer().close();
     else
@@ -63,11 +64,11 @@ void http_client::stop(http_request &request)
 void http_client::make_request(
   http_request &request)
 {
-  logger.trace("make_request");
+  logger.trace("make_request: " + request.get_server());
   if(stopped)
     return;
     
-  deadline.expires_from_now(posix_time::seconds(10));
+  deadline.expires_from_now(posix_time::seconds(45));
   deadline.async_wait(boost::bind(&http_client::stop, this, ref(request)));
   
   std::cout << "Domain: " << request.get_server() << std::endl;
@@ -101,7 +102,7 @@ void http_client::make_request(
   else if (request.get_request_type() == RequestType::GET) // Get request
   {
     request_stream << "GET " << request.get_path() << " HTTP/1.0\r\n";
-    request_stream << "User-Agent: https://github.com/JoyfulReaper/WebCrawler\r\n";
+    request_stream << "User-Agent: WIPBOT\r\n";
     request_stream << "Host: " << request.get_server() << "\r\n";
     request_stream << "Accept: */*\r\n";
     request_stream << "Connection: close\r\n\r\n";
@@ -109,7 +110,7 @@ void http_client::make_request(
               request.get_request_type() == RequestType::CRAWL)
   {
     request_stream << "HEAD " << request.get_path() << " HTTP/1.0\r\n";
-    request_stream << "User-Agent: https://github.com/JoyfulReaper/WebCrawler\r\n";
+    request_stream << "User-Agent: WIPBOT\r\n";
     request_stream << "Host: " << request.get_server() << "\r\n";
     request_stream << "Accept: */*\r\n";
     request_stream << "Connection: close\r\n\r\n";
@@ -126,7 +127,7 @@ void http_client::handle_resolve(
   tcp::resolver::iterator endpoint_it, 
   http_request &request)
 {
-  logger.trace("handle_resolve");
+  logger.trace("handle_resolve: " + request.get_server());
   if(stopped)
     return;
     
@@ -156,7 +157,7 @@ void http_client::handle_connect(
   const system::error_code &err, 
   http_request &request)
 {
-  logger.trace("handle_connect");
+  logger.trace("handle_connect: " + request.get_server());
   if(stopped)
     return;
     
@@ -189,7 +190,7 @@ void http_client::handle_handshake(
     
   if(!err)
   {
-    logger.trace("https handshake");
+    logger.trace("https handshake: " + request.get_server());
     asio::async_write( ssl_sock, request.get_request_buf(), 
       strand.wrap( bind ( &http_client::handle_write_request, this, 
         asio::placeholders::error, ref(request) ) ) );
@@ -204,7 +205,7 @@ void http_client::handle_write_request(
   const system::error_code &err, 
   http_request &request)
 {
-  logger.trace("handle_write_request");
+  logger.trace("handle_write_request: " + request.get_server());
   if(stopped)
     return;
     
@@ -212,7 +213,7 @@ void http_client::handle_write_request(
   {
     if(request.get_protocol() == "https")
     {
-      logger.trace("https write_request");
+      logger.trace("https write_request: " + request.get_server());
       asio::async_read_until( ssl_sock, request.get_response_buf(), "\r\n",
         strand.wrap ( bind ( &http_client::handle_read_status_line, this, asio::placeholders::error,
         ref(request) ) ) );
@@ -232,7 +233,7 @@ void http_client::handle_read_status_line(
   const system::error_code &err, 
   http_request &request)
 {
-  logger.trace("handle_read_status_line");
+  logger.trace("handle_read_status_line: " + request.get_server());
   if(stopped)
     return;  
 
@@ -299,7 +300,7 @@ void http_client::handle_read_headers(
   const system::error_code &err, 
   http_request &request)
 {
-  logger.trace("handle_read_headers");
+  logger.trace("handle_read_headers: " + request.get_server());
   if(stopped)
     return;
     
@@ -330,8 +331,22 @@ void http_client::handle_read_headers(
     }
      
     if(request.get_status_code() == 403)
+    {
+      logger.warn("403: " + request.get_server() + request.get_path());
       stop(request);
+    }
      
+    if(request.get_status_code() == 404)
+    {
+      logger.warn("404: " + request.get_server() + request.get_path());
+      stop(request);
+    }
+    
+    if(request.get_status_code() == 503)
+    {
+      logger.warn("503: " + request.get_server() + request.get_path());
+      stop(request);
+    }
     
     // If response code is 302 or 301 try request again
     if(request.get_status_code() == 302 || request.get_status_code() == 301)
@@ -366,6 +381,10 @@ void http_client::handle_read_headers(
                 request.reset_buffers();
                 request.reset_errors();
                 deadline.cancel();
+                redirect_count++;
+                logger.debug("301/302: (" + std::to_string(redirect_count) + ") Re-requesting: " + server + resource);
+                if(redirect_count > 15)
+                  stop(request);
                 make_request(request);
               }
             }
@@ -396,7 +415,7 @@ void http_client::handle_read_content(
   const system::error_code &err, 
   http_request &request)
 {
-  //logger.trace("handle_read_content");
+  logger.trace("handle_read_content: " + request.get_server());
   if(stopped)
     return;
     
@@ -419,7 +438,7 @@ void http_client::handle_read_content(
     }
   } else if (err == asio::error::eof) {
     request.set_completed(true);
-    logger.trace("Request completed");
+    logger.trace("Request completed: " + request.get_server());
     deadline.cancel();
   } else if (err != asio::error::eof) {
     request.set_completed(true);

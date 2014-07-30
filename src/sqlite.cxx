@@ -266,30 +266,47 @@ v_links sqlite::get_links(std::size_t num)
   return links;
 }
 
-void sqlite::blacklist(std::string domain, std::string path, std::string protocol)
+void sqlite::blacklist(v_links blacklist)
 {
-  std::size_t found;
-  if( (found = path.find("*")) != std::string::npos )
-    return;
-  if( (found = path.find("?")) != std::string::npos )
-    return;
-    
-  std::string sql = "INSERT OR REPLACE INTO Links (domain,path,protocol,blacklisted) " \
-    "VALUES ('" + domain + "', '" + path + "', '" + protocol + "', '" \
-    + "1');";
-  
-  char *err = 0;
-  int rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
-    
-  logger.debug("Blacklisted: " + domain + path + " (" + protocol + ")\n");
-  
+  std::string sql = "BEGIN";
+  int rc = sqlite3_exec(db, sql.c_str(), 0, 0, 0);
   if(rc != SQLITE_OK)
-   {
-    std::string errmsg = "sql_blacklist: ";
-    errmsg.append(sqlite3_errstr(rc));
-    errmsg.append(" " + sql);
-    throw(CrawlerException(errmsg));
-   }
+    logger.error("BEGIN failed");
+    
+  for(auto &link : blacklist)
+  {
+    std::string domain = std::get<0>(link);
+    std::string path = std::get<1>(link);
+    std::string protocol = std::get<2>(link);
+    
+    std::size_t found;
+    if( (found = path.find("*")) != std::string::npos )
+      continue;
+    if( (found = path.find("?")) != std::string::npos )
+      continue;
+    
+    sql = "INSERT OR REPLACE INTO Links (domain,path,protocol,blacklisted) " \
+      "VALUES ('" + domain + "', '" + path + "', '" + protocol + "', '" \
+      + "1');";
+  
+    char *err = 0;
+    rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
+    
+    logger.debug("Blacklisted: " + domain + path + " (" + protocol + ")\n");
+  
+    if(rc != SQLITE_OK)
+    {
+      std::string errmsg = "sql_blacklist: ";
+      errmsg.append(sqlite3_errstr(rc));
+      errmsg.append(" " + sql);
+      throw(CrawlerException(errmsg));
+    }
+  }
+  sql = "COMMIT";
+  rc = sqlite3_exec(db, sql.c_str(), 0, 0, 0);
+  if(rc != SQLITE_OK)
+    logger.error("COMMIT failed");
+    
    return;
 }
 
