@@ -26,6 +26,7 @@
 #include "http_request.hpp"
 #include "sqlite.hpp"
 #include <boost/bind.hpp>
+#include <boost/algorithm/string/case_conv.hpp>
 #include <iostream>
 
 Crawler::Crawler()
@@ -42,33 +43,35 @@ void Crawler::start()
   //NOT READY FOR REAL USE!!!
   
   sqlite db("test.db");
+  
+  process_robots("reddit.com", db);
+  
   //asio::io_service::work work(io_service);
-  
-  auto links = db.get_links(10);
-  for(auto &link : links)
-  {
-    std::unique_ptr<http_request> r(new http_request(
-      std::get<0>(link), std::get<1>(link) ) );
-      
-    r->set_protocol( std::get<2>(link) );
-    r->set_request_type(RequestType::CRAWL);
+  //auto links = db.get_links(10);
+  //for(auto &link : links)
+  //{
+  //  std::unique_ptr<http_request> r(new http_request(
+  //    std::get<0>(link), std::get<1>(link) ) );
+  //    
+  //  r->set_protocol( std::get<2>(link) );
+  //  r->set_request_type(RequestType::CRAWL);
     
-    request_queue.push_back(std::move(r));
-  }
+  //  request_queue.push_back(std::move(r));
+  //}
   
-  while(!request_queue.empty())
+  //while(!request_queue.empty())
   {
-    http_request *request = request_queue.front().get();
-    http_client c(io_service, *request);
-    io_service.run();
+    //http_request *request = request_queue.front().get();
+    //http_client c(io_service, *request);
+    //io_service.run();
     //while(!request->is_completed())
     //{
     //  sleep(1);
     //}
-    db.add_links(request->get_links());
-    db.set_visited(request->get_server(), request->get_path(), request->get_protocol());
-    request_queue.pop_front();
-    io_service.reset();
+    //db.add_links(request->get_links());
+    //db.set_visited(request->get_server(), request->get_path(), request->get_protocol());
+    //request_queue.pop_front();
+    //io_service.reset();
   }
   
   sleep(3);
@@ -82,9 +85,12 @@ void Crawler::process_robots(std::string domain, sqlite &db)
   // Follow SOME robots.txt rules...
   // Not fully compliant
   
+  if(!db.should_process_robots(domain))
+    return;
+  
   http_request r(domain, "/robots.txt");
   http_client c(io_service, r);
-  
+  io_service.run();
   std::string line;
   bool foundUserAgent = false;
   std::size_t found;
@@ -93,12 +99,13 @@ void Crawler::process_robots(std::string domain, sqlite &db)
   while(!ss.eof())
   {
     getline(ss, line);
+    boost::to_lower(line);
     if( (found = line.find("#")) != std::string::npos )
       line = line.substr(0, found);
       
-    if( (found = line.find("User-agent: ")) != std::string::npos)
+    if( (found = line.find("user-agent: ")) != std::string::npos)
     {
-      if( (found = line.find("User-agent: *")) != std::string::npos)
+      if( (found = line.find("user-agent: *")) != std::string::npos)
       {
         foundUserAgent = true;
       } else {
@@ -106,10 +113,12 @@ void Crawler::process_robots(std::string domain, sqlite &db)
       }
     }
     
-    if( foundUserAgent && (found = line.find("Disallow: ")) != std::string::npos)
+    if( foundUserAgent && (found = line.find("disallow: ")) != std::string::npos)
     {
-      //std::string disallow = line.substr(10, line.length());
-      //db.blacklist(server, path, protocol);
+      std::string disallow = line.substr(10, line.length());
+      //std::cout << disallow << std::endl;
+      db.blacklist(r.get_server(), disallow, r.get_protocol());
     }
   }
+  db.set_robot(domain);
 }

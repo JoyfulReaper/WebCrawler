@@ -243,3 +243,86 @@ v_links sqlite::get_links(std::size_t num)
   sqlite3_finalize(statement);
   return links;
 }
+
+void sqlite::blacklist(std::string domain, std::string path, std::string protocol)
+{
+  std::size_t found;
+  if( (found = path.find("*")) != std::string::npos )
+    return;
+  if( (found = path.find("?")) != std::string::npos )
+    return;
+    
+  std::string sql = "INSERT OR REPLACE INTO Links (domain,path,protocol,blacklisted) " \
+    "VALUES ('" + domain + "', '" + path + "', '" + protocol + "', '" \
+    + "1');";
+  
+  char *err = 0;
+  int rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
+    
+  logger.debug("Blacklisted: " + domain + path + " (" + protocol + ")\n");
+  
+  if(rc != SQLITE_OK)
+   {
+    std::string errmsg = "sql_blacklist: ";
+    errmsg.append(sqlite3_errstr(rc));
+    errmsg.append(" " + sql);
+    throw(CrawlerException(errmsg));
+   }
+   return;
+}
+
+void sqlite::set_robot(std::string domain)
+{
+  using namespace std::chrono;
+  system_clock::time_point tp = system_clock::now();
+  system_clock::duration dtn = tp.time_since_epoch();
+  unsigned int seconds = dtn.count() * system_clock::period::num / system_clock::period::den;
+  
+  std::string sql = "INSERT INTO RobotRules (domain,lastUpdated) " \
+    "VALUES ('" + domain + "', '" + std::to_string(seconds) + "');";
+  
+  char *err = 0;
+  int rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
+  
+  logger.debug("Adding " + domain + "to RobotRules");
+  
+  if(rc != SQLITE_OK)
+   {
+    std::string errmsg = "sql_robot: ";
+    errmsg.append(sqlite3_errstr(rc));
+    errmsg.append(" " + sql);
+    throw(CrawlerException(errmsg));
+   }
+   
+  return;
+}
+
+bool sqlite::should_process_robots(std::string domain)
+{
+  bool ret;
+  sqlite3_stmt *statement;
+  std::string sql = "SELECT domain FROM RobotRules WHERE domain = '" + domain + "';";
+  int rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
+  if(rc != SQLITE_OK)
+  {
+    sqlite3_finalize(statement);
+    std::string errmsg = "sql_prcRobot: ";
+    errmsg.append(sqlite3_errstr(rc));
+    throw(CrawlerException(errmsg));
+  }
+  
+  rc = sqlite3_step(statement);
+  if(rc == SQLITE_ROW)
+    ret = false;
+  else if(rc == SQLITE_DONE)
+    ret = true;
+  else
+  {
+    sqlite3_finalize(statement);
+    std::string errmsg = "sql_prcRobot: ";
+    errmsg.append(sqlite3_errstr(rc));
+    throw(CrawlerException(errmsg));
+  }
+  sqlite3_finalize(statement);
+  return ret;
+}

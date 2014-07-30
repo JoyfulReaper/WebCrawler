@@ -47,6 +47,12 @@ public:
   void set_last_visited(std::string domain, std::string path, std::string protocol);
   
   v_links get_links(std::size_t num);
+  
+  void blacklist(std::string server, std::string path, std::string protocol);
+  
+  void set_robot(std::string server);
+  
+  bool should_process_robots(std::string domain);
 
 private:
   std::string databaseFile;
