@@ -278,13 +278,13 @@ void sqlite::set_robot(std::string domain)
   system_clock::duration dtn = tp.time_since_epoch();
   unsigned int seconds = dtn.count() * system_clock::period::num / system_clock::period::den;
   
-  std::string sql = "INSERT INTO RobotRules (domain,lastUpdated) " \
+  std::string sql = "INSERT OR REPLACE INTO RobotRules (domain,lastUpdated) " \
     "VALUES ('" + domain + "', '" + std::to_string(seconds) + "');";
   
   char *err = 0;
   int rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
   
-  logger.debug("Adding " + domain + "to RobotRules");
+  logger.debug("Adding " + domain + " to RobotRules");
   
   if(rc != SQLITE_OK)
    {

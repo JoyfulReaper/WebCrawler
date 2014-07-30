@@ -19,6 +19,7 @@
 #include "http_client.hpp"
 #include "http_request.hpp"
 #include <boost/bind.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 #include <sstream>
 
 http_client::http_client(asio::io_service &io_service, http_request &request) 
@@ -28,10 +29,10 @@ http_client::http_client(asio::io_service &io_service, http_request &request)
     resolver(io_service),
     logger("http_client"),
     sslctx(asio::ssl::context::sslv23),
-    ssl_sock(socket, sslctx)
+    ssl_sock(socket, sslctx),
+    deadline(io_service)
 {
   logger.setIgnoreLevel(Level::NONE);
-  make_request(request);
 }
 
 http_client::~http_client()
@@ -39,9 +40,35 @@ http_client::~http_client()
 
 }
 
+void http_client::stop(http_request &request)
+{
+  logger.trace("stop");
+  if(deadline.expires_at() <= asio::deadline_timer::traits_type::now())
+  {
+    stopped = true;
+    logger.warn("Set stopped = true!");
+    if(request.get_protocol() == "https")
+      ssl_sock.lowest_layer().close();
+    else
+      socket.close();
+    
+    logger.warn("Timeout: " + request.get_server());
+    deadline.expires_at(boost::posix_time::pos_infin);
+    return;
+  }
+  deadline.cancel();
+}
+
 void http_client::make_request(
   http_request &request)
 {
+  logger.trace("make_request");
+  if(stopped)
+    return;
+    
+  deadline.expires_from_now(posix_time::seconds(30));
+  deadline.async_wait(boost::bind(&http_client::stop, this, ref(request)));
+  
   std::cout << "Domain: " << request.get_server() << std::endl;
   std::string domain = request.get_server();
   
@@ -98,6 +125,10 @@ void http_client::handle_resolve(
   tcp::resolver::iterator endpoint_it, 
   http_request &request)
 {
+  logger.trace("handle_resolve");
+  if(stopped)
+    return;
+    
   if(!err)
   {
     if(request.get_protocol() == "https")
@@ -123,6 +154,10 @@ void http_client::handle_connect(
   const system::error_code &err, 
   http_request &request)
 {
+  logger.trace("handle_connect");
+  if(stopped)
+    return;
+    
   if(!err)
   {
     if(request.get_protocol() == "https")
@@ -146,6 +181,9 @@ void http_client::handle_handshake(
     const system::error_code &err, 
     http_request &request)
 {
+  if(stopped)
+    return;
+    
   if(!err)
   {
     logger.trace("https handshake");
@@ -162,6 +200,10 @@ void http_client::handle_write_request(
   const system::error_code &err, 
   http_request &request)
 {
+  logger.trace("handle_write_request");
+  if(stopped)
+    return;
+    
   if(!err)
   {
     if(request.get_protocol() == "https")
@@ -185,6 +227,10 @@ void http_client::handle_read_status_line(
   const system::error_code &err, 
   http_request &request)
 {
+  logger.trace("handle_read_status_line");
+  if(stopped)
+    return;  
+
   if(!err)
   {
     std::istream response_stream(&request.get_response_buf());
@@ -247,6 +293,10 @@ void http_client::handle_read_headers(
   const system::error_code &err, 
   http_request &request)
 {
+  logger.trace("handle_read_headers");
+  if(stopped)
+    return;
+    
   if(!err)
   {
     std::istream response_stream(&request.get_response_buf());
@@ -273,6 +323,10 @@ void http_client::handle_read_headers(
       request.add_header(header);
     }
      
+    if(request.get_status_code() == 403)
+      stop(request);
+     
+    
     // If response code is 302 or 301 try request again
     if(request.get_status_code() == 302 || request.get_status_code() == 301)
     {
@@ -334,6 +388,10 @@ void http_client::handle_read_content(
   const system::error_code &err, 
   http_request &request)
 {
+  //logger.trace("handle_read_content");
+  if(stopped)
+    return;
+    
   if(!err)
   {    
     std::ostringstream ss;

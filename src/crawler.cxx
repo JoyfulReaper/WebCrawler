@@ -44,38 +44,34 @@ void Crawler::start()
   
   sqlite db("test.db");
   
-  process_robots("reddit.com", db);
-  
   //asio::io_service::work work(io_service);
-  //auto links = db.get_links(10);
-  //for(auto &link : links)
-  //{
-  //  std::unique_ptr<http_request> r(new http_request(
-  //    std::get<0>(link), std::get<1>(link) ) );
-  //    
-  //  r->set_protocol( std::get<2>(link) );
-  //  r->set_request_type(RequestType::CRAWL);
-    
-  //  request_queue.push_back(std::move(r));
-  //}
-  
-  //while(!request_queue.empty())
+  auto links = db.get_links(5);
+  for(auto &link : links)
   {
-    //http_request *request = request_queue.front().get();
-    //http_client c(io_service, *request);
-    //io_service.run();
-    //while(!request->is_completed())
-    //{
-    //  sleep(1);
-    //}
-    //db.add_links(request->get_links());
-    //db.set_visited(request->get_server(), request->get_path(), request->get_protocol());
-    //request_queue.pop_front();
-    //io_service.reset();
+    std::unique_ptr<http_request> r(new http_request(
+      std::get<0>(link), std::get<1>(link) ) );
+      
+    r->set_protocol( std::get<2>(link) );
+    r->set_request_type(RequestType::CRAWL);
+    
+    request_queue.push_back(std::move(r));
+  }
+  
+  while(!request_queue.empty())
+  {
+    http_request *request = request_queue.front().get();
+    process_robots(request->get_server(), db);
+    http_client c(io_service, *request);
+    c.make_request(*request);
+    io_service.run();
+    db.add_links(request->get_links());
+    db.set_visited(request->get_server(), request->get_path(), request->get_protocol());
+    request_queue.pop_front();
+    io_service.reset();
   }
   
   sleep(3);
-  io_service.stop();
+  //io_service.stop();
   
   return;
 }
@@ -84,18 +80,22 @@ void Crawler::process_robots(std::string domain, sqlite &db)
 {
   // Follow SOME robots.txt rules...
   // Not fully compliant
+  // This is very much a WIP
+  // Probably doesn't really work at this point
   
   if(!db.should_process_robots(domain))
     return;
   
   http_request r(domain, "/robots.txt");
   http_client c(io_service, r);
+  c.make_request(r);
   io_service.run();
   std::string line;
   bool foundUserAgent = false;
   std::size_t found;
   
   std::istringstream ss(r.get_data());
+  io_service.reset();
   while(!ss.eof())
   {
     getline(ss, line);
