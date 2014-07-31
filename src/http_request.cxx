@@ -31,7 +31,7 @@ http_request::http_request(std::string server, std::string path, unsigned int po
     port(port),
     logger("http_request")
 {
-  logger.setIgnoreLevel(Level::NONE);
+  logger.setIgnoreLevel(Level::TRACE);
 }
 
 http_request::~http_request() {}
@@ -86,14 +86,14 @@ void http_request::search_for_links(GumboNode *node, std::vector<std::string> &l
     found = link.find("#");
     if(found != std::string::npos)
     {
-      logger.debug("Dropping link: " + link);
+      logger.trace("Dropping link: " + link);
       return;
     }
 
     found = link.find("?");
     if(found != std::string::npos)
     {
-      logger.debug("Dropping link: " + link);
+      logger.trace("Dropping link: " + link);
       return;
     }
 

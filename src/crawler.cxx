@@ -39,13 +39,11 @@ Crawler::~Crawler()
  
 void Crawler::start()
 {
-  //FOR TESTING ONLY!!!
-  //NOT READY FOR REAL USE!!!
+  // Reasonably solid single request at a time
   
   sqlite db("test.db");
-  //asio::io_service::work work(io_service);
 
-  auto links = db.get_links(50);
+  auto links = db.get_links(100);
   for(auto &link : links)
   {
     std::unique_ptr<http_request> r(new http_request(
@@ -61,11 +59,11 @@ void Crawler::start()
     http_request *r = request_queue.front().get();
     process_robots(r->get_server(), r->get_protocol(), db);
     
-    if(db.check_blacklist(r->get_server(), r->get_path(), r->get_protocol()))
-    {
-      request_queue.pop_front();
-      continue;
-    }
+    //if(db.check_blacklist(r->get_server(), r->get_path(), r->get_protocol()))
+    //{
+    //  request_queue.pop_front();
+    //  continue;
+    //}
     
     http_client c(io_service, *r);
     io_service.run();
@@ -75,12 +73,13 @@ void Crawler::start()
       db.add_links(r->get_links());
     } else {
       std::cout << "No data?\n";
+      db.set_visited(r->get_server(), r->get_path(), r->get_protocol());
       request_queue.pop_front();
-      sleep(10);
+      sleep(1);
     }
 
-    //if(r->should_blacklist())
-    //  db.blacklist()
+    if(r->should_blacklist())
+      db.blacklist(r->get_server(), r->get_path(), r->get_protocol(), r->get_blacklist_reason());
     
     request_queue.pop_front();
     io_service.reset();
@@ -94,7 +93,6 @@ void Crawler::process_robots(std::string domain, std::string protocol, sqlite &d
   // Follow SOME robots.txt rules...
   // Not fully compliant
   // This is very much a WIP
-  // Probably doesn't really work at this point
   
   if(!db.should_process_robots(domain, protocol))
     return;

@@ -44,7 +44,7 @@ public:
   /**
    * @return port associated with this http_request
    */
-  unsigned int get_port() { return this->port; }
+  unsigned int get_port() const { return this->port; }
   
   /**
    * @param port port associated with this http_request
@@ -54,7 +54,7 @@ public:
   /**
    * @return server associated with this http_request
    */
-  std::string get_server() { return this->server; }
+  std::string get_server() const { return this->server; }
   
   /**
    * @param server Server associated with this http_request
@@ -64,7 +64,7 @@ public:
   /**
    * @return Path/Resource associated with this http_request
    */
-  std::string get_path() { return this->path; }
+  std::string get_path() const { return this->path; }
   
   /**
    * @param path Path/Resource associated with this http_request
@@ -74,7 +74,7 @@ public:
   /**
    * @return The HTTP version the server is using
    */
-  std::string get_http_version() { return this->http_version; }
+  std::string get_http_version() const { return this->http_version; }
 
   /**
    * @param version The HTTP version the server is using
@@ -84,7 +84,7 @@ public:
   /**
    * @return The status code that the server responded with
    */
-  unsigned int get_status_code() { return this->status_code; }
+  unsigned int get_status_code() const { return this->status_code; }
   
   /**
    * @param code The status code the server responded with
@@ -104,7 +104,7 @@ public:
   /**
    * @return A vector of the headers that the server responded with
    */
-  std::vector<std::string> get_headers() { return this->headers; }
+  std::vector<std::string> get_headers() const { return this->headers; }
   
   /**
    * @param request The http request to make
@@ -114,7 +114,7 @@ public:
   /**
    * @return The http request to make
    */
-  std::string get_request() { return this->request; }
+  std::string get_request() const { return this->request; }
   
   /**
    * @param error The error to add
@@ -204,7 +204,7 @@ public:
   /**
    * @return This request's protocol
    */
-  std::string get_protocol() { return this->protocol; }
+  std::string get_protocol() const { return this->protocol; }
   
   void should_blacklist(bool blacklist, std::string reason = "default") 
   { 
@@ -233,7 +233,7 @@ private:
   Logger logger;
   std::string protocol = "http";
   bool blacklist = false;
-  std::string blacklist_reason;
+  std::string blacklist_reason = "default";
   
   void search_for_links(GumboNode *node, std::vector<std::string> &links);
 };

@@ -32,7 +32,7 @@ http_client::http_client(asio::io_service &io_service, http_request &request)
     ssl_sock(socket, sslctx),
     deadline(io_service)
 {
-  logger.setIgnoreLevel(Level::NONE);
+  logger.setIgnoreLevel(Level::TRACE);
   make_request(request);
 }
 
@@ -43,7 +43,7 @@ http_client::~http_client()
 
 void http_client::stop(const http_request &request, std::string from)
 {
-  logger.debug("Stop: " + from);
+  logger.info("Stop: " + from);
   stopped = true;
   if(request.get_protocol() == "https")
     ssl_sock.lowest_layer().close();
@@ -55,7 +55,7 @@ void http_client::stop(const http_request &request, std::string from)
 
 void http_client::check_deadline(const http_request &request)
 {
-  logger.debug("Timeout: " + request.get_server() + request.get_path());
+  logger.trace("Timeout: " + request.get_server() + request.get_path());
   if(stopped)
     return;
     
@@ -77,7 +77,7 @@ void http_client::make_request(
   deadline.expires_from_now(posix_time::seconds(45));
   deadline.async_wait( boost::bind( &http_client::check_deadline, this, ref(request)) );
   
-  logger.trace( "Requesting: " + request.get_protocol() + "://" + 
+  logger.debug( "Requesting: " + request.get_protocol() + "://" + 
     request.get_server() + request.get_path());
     
   std::string domain = request.get_server();
@@ -156,7 +156,7 @@ void http_client::handle_resolve(
           asio::placeholders::error, ref(request) ) ) );
     }
   } else {
-    logger.warn(err.message());
+    logger.warn("Resolve: " + err.message());
     request.add_error("Error: " + err.message());
     stop(request, "handle_resolve");
   }
@@ -184,7 +184,7 @@ void http_client::handle_connect(
           asio::placeholders::error, ref(request) ) ) );
     }
   } else {
-    logger.warn(err.message());
+    logger.warn("Connect: " + err.message());
     request.add_error ("Error: " + err.message());
     stop(request, "handle_connect");
   }
@@ -204,7 +204,7 @@ void http_client::handle_handshake(
       strand.wrap( bind ( &http_client::handle_write_request, this, 
         asio::placeholders::error, ref(request) ) ) );
   } else {
-    logger.warn(err.message());
+    logger.warn("Handshake: " + err.message());
     request.add_error ("Error: " + err.message());
     stop(request, "handle_handshake");
   }
@@ -232,7 +232,7 @@ void http_client::handle_write_request(
         ref(request) ) ) );
     }
   } else {
-    logger.warn(err.message());
+    logger.warn("Write: " + err.message());
     request.add_error ("Error: " + err.message());
     stop(request, "handle_write_request");
   }
@@ -266,9 +266,9 @@ void http_client::handle_read_status_line(
       stop(request, "handle_read_status_line_INVALID");
     }
     
-    logger.trace("HTTP Version: " + http_version);
-    logger.trace("Status code: " + std::to_string(status_code));
-    logger.trace("Status message: " + status_message);
+    logger.debug("HTTP Version: " + http_version);
+    logger.debug("Status code: " + std::to_string(status_code));
+    logger.debug("Status message: " + status_message);
     
     if(request.get_protocol() == "https")
     {
@@ -280,8 +280,9 @@ void http_client::handle_read_status_line(
         strand.wrap( bind( &http_client::handle_read_headers, this, asio::placeholders::error, 
           ref(request) ) ) );
     }
-  } else if(err != asio::error::operation_aborted) {
-    logger.warn(err.message());
+  } else if(err != asio::error::operation_aborted && 
+            err != asio::error::eof) {
+    logger.warn("Status line: " + err.message());
     request.add_error ("Error: " + err.message());
     stop(request, "handle_read_status_line");
   }
@@ -302,22 +303,29 @@ void http_client::handle_read_headers(
     
     while(std::getline(response_stream, header) && header != "\r")
     {
-      logger.trace(header);
-      std::size_t found = std::string::npos;
+      logger.debug(header);
       request.add_header(header + "\n");
-      found = header.find("Content-Type: text/html");
+      std::size_t found = header.find("Content-Type: text/html");
       if(found != std::string::npos && request.get_request_type() == RequestType::CRAWL)
       {
         request.set_request_type(RequestType::GET);
         request.reset_buffers();
         request.reset_errors();
         make_request(request);
+      } else if (found == std::string::npos && request.get_request_type() == RequestType::CRAWL)
+      {
+        if(request.get_status_code() == 200)
+        {
+          logger.warn("Should blacklist: Not html");
+          request.should_blacklist(true, "Not text/html");
+          stop(request, "Not text/html");
+        }
       }
     }
     
     if(request.get_response_buf().size() > 0)
     {
-      logger.trace(header);
+      logger.debug(header);
       request.add_header(header);
     }
      
@@ -389,8 +397,10 @@ void http_client::handle_read_headers(
         asio::transfer_at_least(1), strand.wrap( bind( &http_client::handle_read_content, 
           this, asio::placeholders::error, ref(request) ) ) );
     }
-  } else {
-    logger.warn("Error: " + err.message());
+  } 
+  else if (err != asio::error::eof) 
+  {
+    logger.warn("Headers: " + err.message());
     request.add_error ("Error: " + err.message());
     stop(request, "handle_read_headers");
   }
@@ -424,11 +434,11 @@ void http_client::handle_read_content(
     }
   } else if (err == asio::error::eof) {
       request.set_completed(true);
-      logger.trace("Request completed: " + request.get_server() + request.get_path());
+      logger.trace("Read Request completed: " + request.get_server() + request.get_path());
       deadline.cancel();
   } else if (err != asio::error::eof) {
       request.set_completed(true);
-      logger.debug("Content Error: " + err.message());
+      logger.debug("Read Content Error: " + err.message());
       request.add_error ("Error: " + err.message());
       deadline.cancel();
   }

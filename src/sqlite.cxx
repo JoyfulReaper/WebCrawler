@@ -302,10 +302,17 @@ bool sqlite::check_blacklist(
       std::string bl_proto = reinterpret_cast<const char*>(sqlite3_column_text(statement, 2));
       
       if(bl_domain == domain && bl_path == path && bl_proto == proto)
+      {
+        logger.info("Hit exact match blacklist");
         blacklisted = true; // Exact match
+      }
       
+      //std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ "<< bl_path << "\n";
       if(bl_domain == domain && bl_path == "/" && bl_proto == proto)
+      {
+        logger.info("Hit whole site blackliste");
         blacklisted = true; // Whole site
+      }
         
       if(bl_domain == domain && bl_proto == proto)
       {
@@ -315,7 +322,7 @@ bool sqlite::check_blacklist(
           if( (found == 0) && (path.back() == '/') )
           {
             blacklisted = true; // Directory
-            logger.warn("THE ONE YOU AINT SURE ABOUT HIT! " + proto + "://" + domain + path);
+            logger.info("Hit directory blacklist: " + proto + "://" + domain + path);
           }
         }
       }
@@ -365,6 +372,16 @@ void sqlite::blacklist(
   std::string sql = "INSERT OR REPLACE INTO Blacklist (domain,path,protocol,reason) " \
       "VALUES ('" + domain + "', '" + path + "', '" + protocol + "', '" \
       + reason + "');";
+      
+    char *err = 0;
+    int rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
+    if(rc != SQLITE_OK)
+    {
+      std::string errmsg = "sql_blacklist_single: ";
+      errmsg.append(sqlite3_errstr(rc));
+      errmsg.append(" " + sql);
+      throw(CrawlerException(errmsg));
+    }
 }
 
 void sqlite::blacklist(v_links blacklist, std::string reason)
