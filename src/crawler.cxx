@@ -45,7 +45,7 @@ void Crawler::start()
   sqlite db("test.db");
   //asio::io_service::work work(io_service);
 
-  auto links = db.get_links(500);
+  auto links = db.get_links(50);
   for(auto &link : links)
   {
     std::unique_ptr<http_request> r(new http_request(
@@ -69,8 +69,15 @@ void Crawler::start()
     
     http_client c(io_service, *r);
     io_service.run();
-    db.set_visited(r->get_server(), r->get_path(), r->get_protocol());
-    db.add_links(r->get_links());
+    if(!r->get_data().empty())
+    {
+      db.set_visited(r->get_server(), r->get_path(), r->get_protocol());
+      db.add_links(r->get_links());
+    } else {
+      std::cout << "No data?\n";
+      request_queue.pop_front();
+      sleep(10);
+    }
 
     //if(r->should_blacklist())
     //  db.blacklist()
@@ -78,7 +85,6 @@ void Crawler::start()
     request_queue.pop_front();
     io_service.reset();
   }
-  sleep(2);
   return;
 }
 

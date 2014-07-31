@@ -43,8 +43,22 @@ http_client::~http_client()
 
 void http_client::stop(http_request &request, std::string where)
 {
+  logger.warn("!!!!!!!!!!!stop: " + request.get_server() + " From: " + where + "!!!!!!!!!!!!!");
   stopped = true;
-  logger.trace("stop: " + request.get_server() + " From: " + where);
+  if(request.get_protocol() == "https")
+    ssl_sock.lowest_layer().close();
+  else
+    socket.close();
+  
+  deadline.cancel();
+}
+
+void http_client::timeout(http_request &request, std::string where)
+{
+  if(stopped)
+    return;
+    
+  //logger.trace("timeout: " + request.get_server() + " From: " + where);
   if(deadline.expires_at() <= asio::deadline_timer::traits_type::now())
   {
     if(request.get_protocol() == "https")
@@ -52,11 +66,10 @@ void http_client::stop(http_request &request, std::string where)
     else
       socket.close();
     
-    logger.warn("Timeout: " + request.get_server());
-    deadline.expires_at(boost::posix_time::pos_infin);
+    logger.warn("Timeout: " + request.get_protocol() + "://" + request.get_server() 
+      + request.get_path());
     return;
   }
-  deadline.cancel();
 }
 
 void http_client::make_request(
@@ -66,9 +79,9 @@ void http_client::make_request(
   if(stopped)
     return;
     
-  deadline.expires_from_now(posix_time::seconds(120));
-  std::string stopstring = "timer";
-  deadline.async_wait(boost::bind(&http_client::stop, this, ref(request), stopstring ) );
+  deadline.expires_from_now(posix_time::seconds(30));
+  std::string fromstring = "timer";
+  deadline.async_wait(boost::bind(&http_client::timeout, this, ref(request), fromstring ) );
   
   logger.trace( "Requesting: " + request.get_protocol() + "://" + request.get_server() + request.get_path());
   std::string domain = request.get_server();
@@ -101,7 +114,7 @@ void http_client::make_request(
   else if (request.get_request_type() == RequestType::GET) // Get request
   {
     request_stream << "GET " << request.get_path() << " HTTP/1.0\r\n";
-    request_stream << "User-Agent: SomeSortaBotIguess\r\n";
+    request_stream << "User-Agent: ShittyC++Bot\r\n";
     request_stream << "Host: " << request.get_server() << "\r\n";
     request_stream << "Accept: */*\r\n";
     request_stream << "Connection: close\r\n\r\n";
@@ -109,7 +122,7 @@ void http_client::make_request(
               request.get_request_type() == RequestType::CRAWL)
   {
     request_stream << "HEAD " << request.get_path() << " HTTP/1.0\r\n";
-    request_stream << "User-Agent: SomeSortaBotIguess\r\n";
+    request_stream << "User-Agent: ShittyC++Bot\r\n";
     request_stream << "Host: " << request.get_server() << "\r\n";
     request_stream << "Accept: */*\r\n";
     request_stream << "Connection: close\r\n\r\n";
@@ -148,7 +161,8 @@ void http_client::handle_resolve(
   } else {
     logger.warn(err.message());
     request.add_error("Error: " + err.message());
-    stop(request, "resolve");
+    if(err != asio::error::operation_aborted)
+      stop(request, "resolve");
   }
 }
 
@@ -176,7 +190,9 @@ void http_client::handle_connect(
   } else {
     logger.warn(err.message());
     request.add_error ("Error: " + err.message());
-    stop(request, "connect");
+    if(err != asio::error::operation_aborted
+      && err != asio::error::network_unreachable)
+      stop(request, "connect");
   }
 }
 
@@ -196,7 +212,8 @@ void http_client::handle_handshake(
   } else {
     logger.warn(err.message());
     request.add_error ("Error: " + err.message());
-    stop(request, "handshake");
+    if(err != asio::error::operation_aborted)
+      stop(request, "handshake");
   }
 }
 
@@ -291,7 +308,8 @@ void http_client::handle_read_status_line(
   } else {
     logger.warn(err.message());
     request.add_error ("Error: " + err.message());
-    stop(request, "status_line");
+    if(err != asio::error::operation_aborted)
+      stop(request, "status_line");
   }
 }
 
@@ -407,7 +425,7 @@ void http_client::handle_read_content(
   const system::error_code &err, 
   http_request &request)
 {
-  logger.trace("handle_read_content: " + request.get_server());
+  //logger.trace("handle_read_content: " + request.get_server());
   if(stopped)
     return;
     
@@ -429,11 +447,13 @@ void http_client::handle_read_content(
           asio::placeholders::error, ref(request) ) ) );
     }
   } else if (err == asio::error::eof) {
-    request.set_completed(true);
-    logger.trace("Request completed: " + request.get_server());
+      request.set_completed(true);
+      logger.trace("Request completed: " + request.get_server() + request.get_path());
+      stop(request, "read_content: EOF");
   } else if (err != asio::error::eof) {
-    request.set_completed(true);
-    logger.debug("Content Error: " + err.message());
-    request.add_error ("Error: " + err.message());
+      request.set_completed(true);
+      logger.debug("Content Error: " + err.message());
+      request.add_error ("Error: " + err.message());
+      stop(request, "read_content: error");
   }
 }

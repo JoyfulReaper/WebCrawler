@@ -31,7 +31,7 @@ http_request::http_request(std::string server, std::string path, unsigned int po
     port(port),
     logger("http_request")
 {
-  logger.setIgnoreLevel(Level::TRACE);
+  logger.setIgnoreLevel(Level::NONE);
 }
 
 http_request::~http_request() {}

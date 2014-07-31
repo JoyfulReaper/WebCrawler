@@ -54,6 +54,8 @@ public:
   
   void blacklist(v_links blacklist, std::string reason = "default");
   
+  void blacklist(std::string, std::string, std::string, std::string reason = "default");
+  
   void set_robot_processed(std::string server, std::string protocol);
   
   bool should_process_robots(std::string domain, std::string protocol);

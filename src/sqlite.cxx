@@ -99,7 +99,7 @@ void sqlite::add_links(std::vector<std::string> links)
     sql = "INSERT INTO Links (domain,path,protocol) " \
       "VALUES ('" + domain + "', '" + path + "', '" + protocol + "');";
       
-    logger.trace("SQL: " + sql);
+    logger.trace("Adding link to DB: " + protocol + "://" + domain + path);
 
     rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
     
@@ -342,6 +342,8 @@ void sqlite::remove_link(std::string domain, std::string path, std::string proto
   std::string sql = "DELETE FROM Links WHERE domain = '" + domain + "' AND path = '" \
     + path + "' AND protocol = '" + protocol +"';";
     
+  logger.warn("REMOVING LINK: " + protocol + "://" + domain + path + " !!!!!!!!!!!!!!!!!!!!!!!!!!!");
+  
   char *err = 0;
   int rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
   
@@ -352,6 +354,17 @@ void sqlite::remove_link(std::string domain, std::string path, std::string proto
     errmsg.append(" " + sql);
     throw(CrawlerException(errmsg));
   }
+}
+
+void sqlite::blacklist(
+  std::string domain, 
+  std::string path, 
+  std::string protocol,
+  std::string reason)
+{
+  std::string sql = "INSERT OR REPLACE INTO Blacklist (domain,path,protocol,reason) " \
+      "VALUES ('" + domain + "', '" + path + "', '" + protocol + "', '" \
+      + reason + "');";
 }
 
 void sqlite::blacklist(v_links blacklist, std::string reason)
@@ -380,7 +393,7 @@ void sqlite::blacklist(v_links blacklist, std::string reason)
     char *err = 0;
     rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
     
-    logger.debug("Blacklisted: " + domain + path + " (" + protocol + ")");
+    logger.info("Blacklisted: " + domain + path + " (" + protocol + ")");
   
     if(rc != SQLITE_OK)
     {
