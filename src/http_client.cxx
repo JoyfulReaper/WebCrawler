@@ -41,51 +41,46 @@ http_client::~http_client()
 
 }
 
-void http_client::stop(http_request &request, std::string where)
+void http_client::stop(const http_request &request, std::string from)
 {
-  logger.warn("!!!!!!!!!!!stop: " + request.get_server() + " From: " + where + "!!!!!!!!!!!!!");
+  logger.debug("Stop: " + from);
   stopped = true;
   if(request.get_protocol() == "https")
     ssl_sock.lowest_layer().close();
   else
     socket.close();
-  
+
   deadline.cancel();
 }
 
-void http_client::timeout(http_request &request, std::string where)
+void http_client::check_deadline(const http_request &request)
 {
+  logger.debug("Timeout: " + request.get_server() + request.get_path());
   if(stopped)
     return;
     
-  //logger.trace("timeout: " + request.get_server() + " From: " + where);
   if(deadline.expires_at() <= asio::deadline_timer::traits_type::now())
   {
     if(request.get_protocol() == "https")
       ssl_sock.lowest_layer().close();
     else
       socket.close();
-    
-    logger.warn("Timeout: " + request.get_protocol() + "://" + request.get_server() 
-      + request.get_path());
-    return;
+  
+    stop(request, "Timeout");
   }
 }
 
 void http_client::make_request(
   http_request &request)
 {
-  logger.trace("make_request: " + request.get_server());
-  if(stopped)
-    return;
+  stopped = false;
+  deadline.expires_from_now(posix_time::seconds(45));
+  deadline.async_wait( boost::bind( &http_client::check_deadline, this, ref(request)) );
+  
+  logger.trace( "Requesting: " + request.get_protocol() + "://" + 
+    request.get_server() + request.get_path());
     
-  deadline.expires_from_now(posix_time::seconds(30));
-  std::string fromstring = "timer";
-  deadline.async_wait(boost::bind(&http_client::timeout, this, ref(request), fromstring ) );
-  
-  logger.trace( "Requesting: " + request.get_protocol() + "://" + request.get_server() + request.get_path());
   std::string domain = request.get_server();
-  
   if(domain[0] == '/' && domain[1] == '/')
   {
     logger.trace("Fixing link: " + domain);
@@ -110,7 +105,10 @@ void http_client::make_request(
   std::ostream request_stream(&request.get_request_buf());
   
   if(request.get_request().size() > 0) // Request provided
+  {
     request_stream << request.get_request();
+    request_stream << "User-Agent: IllThinkOfOneLater\r\n";
+  }
   else if (request.get_request_type() == RequestType::GET) // Get request
   {
     request_stream << "GET " << request.get_path() << " HTTP/1.0\r\n";
@@ -118,7 +116,7 @@ void http_client::make_request(
     request_stream << "Host: " << request.get_server() << "\r\n";
     request_stream << "Accept: */*\r\n";
     request_stream << "Connection: close\r\n\r\n";
-  } else if (request.get_request_type() == RequestType::HEAD || 
+  } else if (request.get_request_type() == RequestType::HEAD || // Head request
               request.get_request_type() == RequestType::CRAWL)
   {
     request_stream << "HEAD " << request.get_path() << " HTTP/1.0\r\n";
@@ -129,7 +127,6 @@ void http_client::make_request(
   }
   
   tcp::resolver::query query(request.get_server(), std::to_string(request.get_port()));
-
   resolver.async_resolve( query, strand.wrap(bind ( &http_client::handle_resolve, this,
     asio::placeholders::error, asio::placeholders::iterator, ref(request) ) ) );
 }
@@ -161,8 +158,7 @@ void http_client::handle_resolve(
   } else {
     logger.warn(err.message());
     request.add_error("Error: " + err.message());
-    if(err != asio::error::operation_aborted)
-      stop(request, "resolve");
+    stop(request, "handle_resolve");
   }
 }
 
@@ -190,9 +186,7 @@ void http_client::handle_connect(
   } else {
     logger.warn(err.message());
     request.add_error ("Error: " + err.message());
-    if(err != asio::error::operation_aborted
-      && err != asio::error::network_unreachable)
-      stop(request, "connect");
+    stop(request, "handle_connect");
   }
 }
 
@@ -212,8 +206,7 @@ void http_client::handle_handshake(
   } else {
     logger.warn(err.message());
     request.add_error ("Error: " + err.message());
-    if(err != asio::error::operation_aborted)
-      stop(request, "handshake");
+    stop(request, "handle_handshake");
   }
 }
 
@@ -241,7 +234,7 @@ void http_client::handle_write_request(
   } else {
     logger.warn(err.message());
     request.add_error ("Error: " + err.message());
-    stop(request, "write_request");
+    stop(request, "handle_write_request");
   }
 }
 
@@ -259,57 +252,38 @@ void http_client::handle_read_status_line(
     std::string http_version;
     std::string status_message;
     size_t status_code;
+
+    response_stream >> http_version;
+    response_stream >> status_code;
+    request.set_http_version(http_version);
+    request.set_status_code(status_code);
+    
+    std::getline(response_stream, status_message);
+    if(!response_stream || http_version.substr(0, 5) != "HTTP/")
+    {
+      logger.warn("Invalid HTTP response");
+      request.add_error( "Invalid HTTP response");
+      stop(request, "handle_read_status_line_INVALID");
+    }
+    
+    logger.trace("HTTP Version: " + http_version);
+    logger.trace("Status code: " + std::to_string(status_code));
+    logger.trace("Status message: " + status_message);
     
     if(request.get_protocol() == "https")
     {
-      logger.trace("https read_status");
-      response_stream >> http_version;
-      response_stream >> status_code;
-      request.set_http_version(http_version);
-      request.set_status_code(status_code);
-      
-      std::getline(response_stream, status_message);
-      if(!response_stream || http_version.substr(0, 5) != "HTTP/")
-      {
-        logger.warn("SSL Invalid HTTP response");
-        request.add_error( "Invalid HTTP response");
-        return;
-      }
-      
-      logger.trace("HTTP Version: " + http_version);
-      logger.trace("Status code: " + std::to_string(status_code));
-      logger.trace("Status message: " + status_message);
-      
       asio::async_read_until( ssl_sock, request.get_response_buf(), "\r\n\r\n",
         strand.wrap ( bind ( &http_client::handle_read_headers, this, asio::placeholders::error,
         ref(request) ) ) );
-    } else {      
-      response_stream >> http_version;
-      response_stream >> status_code;
-      request.set_http_version(http_version);
-      request.set_status_code(status_code);
-      
-      std::getline(response_stream, status_message);
-      if(!response_stream || http_version.substr(0, 5) != "HTTP/")
-      {
-        logger.warn("Invalid HTTP response");
-        request.add_error( "Invalid HTTP response");
-        return;
-      }
-      
-      logger.trace("HTTP Version: " + http_version);
-      logger.trace("Status code: " + std::to_string(status_code));
-      logger.trace("Status message: " + status_message);
-      
+    } else {
       asio::async_read_until( socket, request.get_response_buf(), "\r\n\r\n",
         strand.wrap( bind( &http_client::handle_read_headers, this, asio::placeholders::error, 
           ref(request) ) ) );
     }
-  } else {
+  } else if(err != asio::error::operation_aborted) {
     logger.warn(err.message());
     request.add_error ("Error: " + err.message());
-    if(err != asio::error::operation_aborted)
-      stop(request, "status_line");
+    stop(request, "handle_read_status_line");
   }
 }
 
@@ -352,7 +326,7 @@ void http_client::handle_read_headers(
        request.get_status_code() == 503)
     {
       logger.warn(request.get_status_code() + ": " + request.get_server() + request.get_path());
-      stop(request, "Bad code");
+      stop(request, "Stopping becasue of status code");
     }
     
     // If response code is 302 or 301 try request again
@@ -386,23 +360,24 @@ void http_client::handle_read_headers(
                 request.set_server(server);
                 request.set_path(resource);
                 request.reset_buffers();
-                request.reset_errors();
-                deadline.cancel();
+                request.reset_errors();;
                 redirect_count++;
                 logger.debug("301/302: (" + std::to_string(redirect_count) + ") Re-requesting: " + server + resource);
                 if(redirect_count > 15)
                 {
                   request.should_blacklist(true, "redirect loop");
-                  stop(request, "Redirect");
+                  stop(request, "Redirect loop");
                 }
                 make_request(request);
+              } else {
+                stop(request, "Failed to redirect");
               }
             }
           }
-        }
-      }
-      return;
-    }
+        } // Found location header
+      } // For all headers
+    } // 301/302
+    
     if(request.get_protocol() == "https")
     {
       logger.trace("https read_header");
@@ -417,7 +392,7 @@ void http_client::handle_read_headers(
   } else {
     logger.warn("Error: " + err.message());
     request.add_error ("Error: " + err.message());
-    stop(request, "read_headers");
+    stop(request, "handle_read_headers");
   }
 }
 
@@ -425,10 +400,11 @@ void http_client::handle_read_content(
   const system::error_code &err, 
   http_request &request)
 {
-  //logger.trace("handle_read_content: " + request.get_server());
   if(stopped)
     return;
-    
+  
+  //logger.trace("handle_read_content: " + request.get_server());
+  
   if(!err)
   {    
     std::ostringstream ss;
@@ -449,11 +425,11 @@ void http_client::handle_read_content(
   } else if (err == asio::error::eof) {
       request.set_completed(true);
       logger.trace("Request completed: " + request.get_server() + request.get_path());
-      stop(request, "read_content: EOF");
+      deadline.cancel();
   } else if (err != asio::error::eof) {
       request.set_completed(true);
       logger.debug("Content Error: " + err.message());
       request.add_error ("Error: " + err.message());
-      stop(request, "read_content: error");
+      deadline.cancel();
   }
 }

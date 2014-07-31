@@ -61,11 +61,11 @@ private:
   std::size_t redirect_count = 0;
   bool stopped = false;
 
+  void stop(const http_request &request, std::string from);
+  
+  void check_deadline(const http_request &request);
+
   void make_request(http_request &request);
-
-  void stop(http_request &request, std::string where);
-
-  void timeout(http_request &request, std::string where);
 
   void handle_resolve(
     const system::error_code &err, 
