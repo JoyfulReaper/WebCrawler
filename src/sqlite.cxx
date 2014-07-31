@@ -81,7 +81,7 @@ void sqlite::add_links(std::vector<std::string> links)
     
     if(protocol != "http" && protocol != "https")
     {
-      logger.trace("SQLite: Dropping: " + link);
+      logger.debug("SQLite: Dropping: (" + protocol + ")" + link);
       continue;
     }
     
@@ -230,7 +230,7 @@ v_links sqlite::get_links(std::size_t num)
   sqlite3_stmt *statement;
   
   std::string sql = "SELECT domain,path,protocol FROM Links WHERE visited = '0'" \
-    "AND blacklisted = '0' LIMIT " + std::to_string(num) + ";";
+    " LIMIT " + std::to_string(num) + ";";
     
   int rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
   if(rc != SQLITE_OK)
@@ -250,13 +250,20 @@ v_links sqlite::get_links(std::size_t num)
       std::string path = reinterpret_cast<const char*>(sqlite3_column_text(statement, 1));
       std::string proto = reinterpret_cast<const char*>(sqlite3_column_text(statement, 2));
       
+      if(check_blacklist(domain, path, proto))
+      {
+        remove_link(domain, path, proto);
+        rc = sqlite3_step(statement);
+        continue;
+      }
+      
       std::tuple<std::string,std::string,std::string> link(domain,path,proto);
       links.push_back(link);
       
       rc = sqlite3_step(statement);
     } else {
       sqlite3_finalize(statement);
-      std::string errmsg = "sql_fill: ";
+      std::string errmsg = "get_links: ";
       errmsg.append(sqlite3_errstr(rc));
       throw(CrawlerException(errmsg));
     }
@@ -266,7 +273,88 @@ v_links sqlite::get_links(std::size_t num)
   return links;
 }
 
-void sqlite::blacklist(v_links blacklist)
+bool sqlite::check_blacklist(
+  std::string domain, 
+  std::string path, 
+  std::string proto)
+{
+  bool blacklisted = false;
+  sqlite3_stmt *statement;
+  std::string sql = "SELECT domain,path,protocol FROM Blacklist WHERE " \
+    "domain = '" + domain + "' AND protocol = '" + proto + "';";
+  
+  int rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
+  if(rc != SQLITE_OK)
+  {
+    sqlite3_finalize(statement);
+    std::string errmsg = "check_bl: ";
+    errmsg.append(sqlite3_errstr(rc));
+    throw(CrawlerException(errmsg));
+  }
+  
+  rc = sqlite3_step(statement);
+  while(rc != SQLITE_DONE)
+  {
+    if(rc == SQLITE_ROW)
+    {
+      std::string bl_domain = reinterpret_cast<const char*>(sqlite3_column_text(statement, 0));
+      std::string bl_path = reinterpret_cast<const char*>(sqlite3_column_text(statement, 1));
+      std::string bl_proto = reinterpret_cast<const char*>(sqlite3_column_text(statement, 2));
+      
+      if(bl_domain == domain && bl_path == path && bl_proto == proto)
+        blacklisted = true; // Exact match
+      
+      if(bl_domain == domain && bl_path == "/" && bl_proto == proto)
+        blacklisted = true; // Whole site
+        
+      if(bl_domain == domain && bl_proto == proto)
+      {
+        std::size_t found;
+        if( ( found = path.find(bl_path) ) != std::string::npos)
+        {
+          if( (found == 0) && (path.back() == '/') )
+          {
+            blacklisted = true; // Directory
+            logger.warn("THE ONE YOU AINT SURE ABOUT HIT! " + proto + "://" + domain + path);
+          }
+        }
+      }
+      
+      rc = sqlite3_step(statement);
+    } else {
+      sqlite3_finalize(statement);
+      std::string errmsg = "check_bl: ";
+      errmsg.append(sqlite3_errstr(rc));
+      throw(CrawlerException(errmsg));
+    }
+  }
+  
+  sqlite3_finalize(statement);
+  
+  if(blacklisted)
+    logger.debug("Hit blacklist: " + proto +"://" + domain + path);
+  
+  return blacklisted;
+}
+
+void sqlite::remove_link(std::string domain, std::string path, std::string protocol)
+{
+  std::string sql = "DELETE FROM Links WHERE domain = '" + domain + "' AND path = '" \
+    + path + "' AND protocol = '" + protocol +"';";
+    
+  char *err = 0;
+  int rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
+  
+  if(rc != SQLITE_OK)
+  {
+    std::string errmsg = "remove_link: ";
+    errmsg.append(sqlite3_errstr(rc));
+    errmsg.append(" " + sql);
+    throw(CrawlerException(errmsg));
+  }
+}
+
+void sqlite::blacklist(v_links blacklist, std::string reason)
 {
   std::string sql = "BEGIN";
   int rc = sqlite3_exec(db, sql.c_str(), 0, 0, 0);
@@ -283,16 +371,16 @@ void sqlite::blacklist(v_links blacklist)
     if( (found = path.find("*")) != std::string::npos )
       continue;
     if( (found = path.find("?")) != std::string::npos )
-      continue;
+      continue; // We don't add these anyway
     
-    sql = "INSERT OR REPLACE INTO Links (domain,path,protocol,blacklisted) " \
+    sql = "INSERT OR REPLACE INTO Blacklist (domain,path,protocol,reason) " \
       "VALUES ('" + domain + "', '" + path + "', '" + protocol + "', '" \
-      + "1');";
+      + reason + "');";
   
     char *err = 0;
     rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
     
-    logger.debug("Blacklisted: " + domain + path + " (" + protocol + ")\n");
+    logger.debug("Blacklisted: " + domain + path + " (" + protocol + ")");
   
     if(rc != SQLITE_OK)
     {
@@ -310,15 +398,15 @@ void sqlite::blacklist(v_links blacklist)
    return;
 }
 
-void sqlite::set_robot(std::string domain)
+void sqlite::set_robot_processed(std::string domain, std::string protocol)
 {
   using namespace std::chrono;
   system_clock::time_point tp = system_clock::now();
   system_clock::duration dtn = tp.time_since_epoch();
   unsigned int seconds = dtn.count() * system_clock::period::num / system_clock::period::den;
   
-  std::string sql = "INSERT OR REPLACE INTO RobotRules (domain,lastUpdated) " \
-    "VALUES ('" + domain + "', '" + std::to_string(seconds) + "');";
+  std::string sql = "INSERT OR REPLACE INTO RobotRules (domain,protocol,lastUpdated) " \
+    "VALUES ('" + domain + "', '" + protocol + "', '" + std::to_string(seconds) + "');";
   
   char *err = 0;
   int rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
@@ -336,11 +424,12 @@ void sqlite::set_robot(std::string domain)
   return;
 }
 
-bool sqlite::should_process_robots(std::string domain)
+bool sqlite::should_process_robots(std::string domain, std::string protocol)
 {
   bool ret;
   sqlite3_stmt *statement;
-  std::string sql = "SELECT domain FROM RobotRules WHERE domain = '" + domain + "';";
+  std::string sql = "SELECT domain FROM RobotRules WHERE domain = '" + domain + "'" \
+    "AND protocol = '" + protocol + "';";
   int rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
   if(rc != SQLITE_OK)
   {

@@ -205,6 +205,16 @@ public:
    * @return This request's protocol
    */
   std::string get_protocol() { return this->protocol; }
+  
+  void should_blacklist(bool blacklist, std::string reason = "default") 
+  { 
+    this->blacklist = blacklist;
+    this->blacklist_reason = reason;
+  }
+  
+  bool should_blacklist() { return this->blacklist;  }
+
+  std::string get_blacklist_reason() { return blacklist_reason; }
 
 private:
   std::string server = "NULL";
@@ -222,6 +232,8 @@ private:
   bool requestCompleted = false;
   Logger logger;
   std::string protocol = "http";
+  bool blacklist = false;
+  std::string blacklist_reason;
   
   void search_for_links(GumboNode *node, std::vector<std::string> &links);
 };

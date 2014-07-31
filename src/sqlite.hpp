@@ -48,11 +48,15 @@ public:
   
   v_links get_links(std::size_t num);
   
-  void blacklist(v_links blacklist);
+  bool check_blacklist(std::string domain, std::string path, std::string proto);
   
-  void set_robot(std::string server);
+  void remove_link(std::string domain, std::string path, std::string protocol);
   
-  bool should_process_robots(std::string domain);
+  void blacklist(v_links blacklist, std::string reason = "default");
+  
+  void set_robot_processed(std::string server, std::string protocol);
+  
+  bool should_process_robots(std::string domain, std::string protocol);
 
 private:
   std::string databaseFile;

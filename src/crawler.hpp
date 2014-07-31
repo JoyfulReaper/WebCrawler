@@ -43,7 +43,7 @@ public:
 
   void start();
   
-  void process_robots(std::string domain, sqlite &db);
+  void process_robots(std::string domain, std::string protocol, sqlite &db);
 
 private:
   asio::io_service io_service;

@@ -59,13 +59,22 @@ void Crawler::start()
   while(!request_queue.empty())
   {
     http_request *r = request_queue.front().get();
-    //http_request *r = new http_request("www.google.com", "/");
-    process_robots(r->get_server(), db);
+    process_robots(r->get_server(), r->get_protocol(), db);
+    
+    if(db.check_blacklist(r->get_server(), r->get_path(), r->get_protocol()))
+    {
+      request_queue.pop_front();
+      continue;
+    }
     
     http_client c(io_service, *r);
     io_service.run();
     db.set_visited(r->get_server(), r->get_path(), r->get_protocol());
     db.add_links(r->get_links());
+
+    //if(r->should_blacklist())
+    //  db.blacklist()
+    
     request_queue.pop_front();
     io_service.reset();
   }
@@ -74,14 +83,14 @@ void Crawler::start()
 }
 
 
-void Crawler::process_robots(std::string domain, sqlite &db)
+void Crawler::process_robots(std::string domain, std::string protocol, sqlite &db)
 {
   // Follow SOME robots.txt rules...
   // Not fully compliant
   // This is very much a WIP
   // Probably doesn't really work at this point
   
-  if(!db.should_process_robots(domain))
+  if(!db.should_process_robots(domain, protocol))
     return;
 
   v_links blacklist;
@@ -118,7 +127,7 @@ void Crawler::process_robots(std::string domain, sqlite &db)
     }
   }
   if(!blacklist.empty());
-    db.blacklist(blacklist);
-  db.set_robot(domain);
+    db.blacklist(blacklist, "robots.txt");
+  db.set_robot_processed(domain, protocol);
   io_service.reset();
 }

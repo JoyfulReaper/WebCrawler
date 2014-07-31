@@ -63,7 +63,7 @@ private:
 
   void make_request(http_request &request);
 
-  void stop(http_request &request);
+  void stop(http_request &request, std::string where);
 
   void handle_resolve(
     const system::error_code &err, 
