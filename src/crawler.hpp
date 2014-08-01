@@ -42,16 +42,42 @@ public:
 
   virtual ~Crawler();
 
+  /**
+   * Start the crawl
+   */
   void start();
   
+  /**
+   * Check if the given resources retuns the Content: text/html header
+   * @param request The resource to check
+   * @return true if html/text or false if the header wasn't sent
+   */
   bool check_if_header_text_html(http_request &request);
   
+  /**
+   * Make the request, download contents, check if it has an <html> tag
+   * @param request The resource to check
+   * @return true if html, false otherwise
+   */
   bool check_if_html(http_request &request);
   
+  /**
+   * Process a sites robots.txt
+   * @param domain The domain
+   * @param protocol http or https
+   */
   void process_robots(std::string domain, std::string protocol, sqlite &db);
   
+  /**
+   * Add the given URL to the database to be processed
+   * @param domain The domain
+   * @param path The resource (/, /index.html, etc)
+   */
   void seed(std::string domain, std::string path);
   
+  /**
+   * Close the database and exit
+   */
   void handle_stop();
 
 private:
