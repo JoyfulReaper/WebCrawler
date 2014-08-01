@@ -50,6 +50,8 @@ public:
   
   void process_robots(std::string domain, std::string protocol, sqlite &db);
   
+  void seed(std::string domain, std::string path);
+  
   void handle_stop();
 
 private:

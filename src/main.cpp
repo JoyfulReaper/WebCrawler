@@ -32,11 +32,9 @@ int main(int argc, char **argv)
   
   if(argc == 3)
   {
-    boost::asio::io_service io;
-    http_request r(argv[1], argv[2]);
-    http_client c(io, r);
-    io.run();
-    std::cout << r.get_data();
+    Crawler crawler;
+    crawler.seed(argv[1], argv[2]);
+    crawler.start();
   } else {
     Crawler crawler;
     crawler.start();

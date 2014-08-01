@@ -62,37 +62,47 @@ void Crawler::start()
     r->set_request_type(RequestType::HEAD);
     request_queue.push_back(std::move(r));
   }
-  
+
   while(!request_queue.empty())
   {
+    logger.info("Queue size: " + std::to_string(request_queue.size()));
     http_request *r = request_queue.front().get();
-    process_robots(r->get_server(), r->get_protocol(), db);
+    if(r == nullptr)
+    {
+      logger.severe("NULL POINTER!");
+      request_queue.pop_front();
+      sleep(1);
+      continue;
+    }
     
+    std::string requested_domain = r->get_server();
+    std::string requested_path = r->get_path();
+    
+    process_robots(r->get_server(), r->get_protocol(), db);
     if( check_if_header_text_html(*r) )
       {
-      http_client c(io_service, *r);
-      io_service.run();
-      if(!r->get_data().empty())
-      {
+        http_client c(io_service, *r);
+        io_service.run();
+  
+        if(r->get_data().size() == 0)
+          logger.warn("No Data returned!");
+  
+        if(r->get_server() != requested_domain || r->get_path() != requested_path)
+        {
+          r->set_server(requested_domain);
+          r->set_path(requested_path);
+        }
         db.set_visited(r->get_server(), r->get_path(), r->get_protocol(),
           r->get_status_code());
         db.add_links(r->get_links());
-      } else {
-        std::cout << "No data?\n";
-        db.set_visited(r->get_server(), r->get_path(), r->get_protocol(),
-          r->get_status_code());
-        request_queue.pop_front();
       }
-    }
-    if(r->should_blacklist())
-    {
-      db.blacklist(r->get_server(), r->get_path(), r->get_protocol(), r->get_blacklist_reason());
-    }
+    
+      if(r->should_blacklist())
+        db.blacklist(r->get_server(), r->get_path(), r->get_protocol(), r->get_blacklist_reason());
     
     request_queue.pop_front();
     io_service.reset();
   }
-  return;
 }
 
 bool Crawler::check_if_header_text_html(http_request &request)
@@ -203,6 +213,11 @@ void Crawler::process_robots(std::string domain, std::string protocol, sqlite &d
     db.blacklist(blacklist, "robots.txt");
   db.set_robot_processed(domain, protocol);
   io_service.reset();
+}
+
+void Crawler::seed(std::string domain, std::string path)
+{
+  db.add_link(domain + path);
 }
 
 void Crawler::handle_stop()

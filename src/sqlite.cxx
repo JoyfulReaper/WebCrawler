@@ -26,6 +26,7 @@
 #include <chrono>
 #include <unistd.h>
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/algorithm/string/case_conv.hpp>
 
 sqlite::sqlite(std::string databaseFile)
   : databaseFile(databaseFile),
@@ -106,6 +107,8 @@ void sqlite::add_links(std::vector<std::string> links)
     }
     
     path = boost::algorithm::replace_all_copy(path, "'", "''");
+    boost::to_lower(domain);
+    boost::to_lower(protocol);
     
     sql = "INSERT INTO Links (domain,path,protocol) " \
       "VALUES ('" + domain + "', '" + path + "', '" + protocol + "');";
@@ -177,10 +180,12 @@ void sqlite::set_visited(
 {
   sqlite3_stmt *statement;
   
+  path = boost::algorithm::replace_all_copy(path, "'", "''");
+  
   std::string sql = "UPDATE Links SET visited = '1', lastCode = '" + \
     std::to_string(code) + "' WHERE domain = '" + domain + "' AND PATH = '" \
     + path + "' AND protocol = '" + protocol + "';";
-    
+  
   int rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
   if(rc != SQLITE_OK)
   {

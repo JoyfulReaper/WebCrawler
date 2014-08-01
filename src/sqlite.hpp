@@ -42,6 +42,13 @@ public:
   
   void add_links(std::vector<std::string> links);
   
+  void add_link(std::string link)
+  {
+    std::vector<std::string> vlink;
+    vlink.push_back(link);
+    add_links(vlink);
+  }
+  
   bool get_visited(
     std::string domain, 
     std::string path, 

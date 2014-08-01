@@ -20,7 +20,6 @@
 #include "http_request.hpp"
 #include <boost/bind.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
-#include <boost/algorithm/string/case_conv.hpp>
 #include <sstream>
 
 http_client::http_client(asio::io_service &io_service, http_request &request) 
@@ -33,7 +32,7 @@ http_client::http_client(asio::io_service &io_service, http_request &request)
     ssl_sock(socket, sslctx),
     deadline(io_service)
 {
-  logger.setIgnoreLevel(Level::NONE);
+  logger.setIgnoreLevel(Level::TRACE);
   make_request(request);
 }
 
@@ -79,7 +78,7 @@ void http_client::make_request(
   deadline.expires_from_now(posix_time::seconds(45));
   deadline.async_wait( boost::bind( &http_client::check_deadline, this, ref(request)) );
   
-  logger.debug( "Requesting: " + request.get_protocol() + "://" + 
+  logger.info( "Requesting: " + request.get_protocol() + "://" + 
     request.get_server() + request.get_path());
     
   std::string domain = request.get_server();
@@ -306,13 +305,13 @@ void http_client::handle_read_headers(
     
     while(std::getline(response_stream, header) && header != "\r")
     {
-      logger.debug(header);
+      logger.trace(header);
       request.add_header(header + "\n");
     }
     
     if(request.get_response_buf().size() > 0)
     {
-      logger.debug(header);
+      logger.trace(header);
       request.add_header(header);
     }
      
@@ -421,7 +420,7 @@ void http_client::handle_read_content(
     }
   } else if (err == asio::error::eof) {
       request.set_completed(true);
-      logger.trace("Read Request completed: " + request.get_server() + request.get_path());
+      logger.debug("Read Request completed: " + request.get_server() + request.get_path());
       deadline.cancel();
   } else if (err != asio::error::eof) {
       request.set_completed(true);

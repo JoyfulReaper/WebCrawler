@@ -62,8 +62,6 @@ void http_request::search_for_links(GumboNode *node, std::vector<std::string> &l
     std::size_t found = std::string::npos;
     std::string link = href->value;
     
-    boost::to_lower(link);
-    
     if(link[0] == '/' && link[1] == '/')
     {
       logger.trace("Fixing link: " + link);
