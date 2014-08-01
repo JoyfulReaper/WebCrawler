@@ -52,7 +52,7 @@ void Crawler::start()
   
   //sqlite db("test.db");
 
-  auto links = db.get_links(100);
+  auto links = db.get_links(500);
   for(auto &link : links)
   {
     std::unique_ptr<http_request> r(new http_request(
@@ -62,8 +62,6 @@ void Crawler::start()
     r->set_request_type(RequestType::HEAD);
     request_queue.push_back(std::move(r));
   }
-  
-  sleep(5);
   
   while(!request_queue.empty())
   {

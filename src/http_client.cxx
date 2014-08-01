@@ -318,6 +318,7 @@ void http_client::handle_read_headers(
      
     if(request.get_status_code() == 403 || 
        request.get_status_code() == 404 ||
+       request.get_status_code() == 405 ||
        request.get_status_code() == 503)
     {
       logger.warn(request.get_status_code() + ": " + request.get_server() + request.get_path());
@@ -347,25 +348,18 @@ void http_client::handle_read_headers(
             {
               std::string server = location.substr(0, found);
               std::string resource = location.substr(found, location.length());
-              
-              found = resource.find("\r");
-              if(found != std::string::npos)
+              if(redirect_count >= 5)
               {
-                resource = resource.substr(0, found);
+                logger.warn("Breaking redirect loop");
+                continue;
+              } else {
+                logger.warn("301/302 Redirecting: (" + std::to_string(redirect_count) + ")");
+                request.reset_buffers();
+                request.reset_errors();
                 request.set_server(server);
                 request.set_path(resource);
-                request.reset_buffers();
-                request.reset_errors();;
                 redirect_count++;
-                logger.debug("301/302: (" + std::to_string(redirect_count) + ") Re-requesting: " + server + resource);
-                if(redirect_count > 15)
-                {
-                  request.should_blacklist(true, "redirect loop");
-                  stop(request, "Redirect loop");
-                }
                 make_request(request);
-              } else {
-                stop(request, "Failed to redirect");
               }
             }
           }
