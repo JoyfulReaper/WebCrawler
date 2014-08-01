@@ -30,7 +30,7 @@
 #include <vector>
 #include <logger/logger.hpp>
 
-enum class RequestType { HEAD, GET, CRAWL };
+enum class RequestType { HEAD, GET};
 
 class http_request
 {
@@ -144,7 +144,6 @@ public:
   /**
    * @param type The type of request to make.
    * Currently supported: GET and HEAD
-   * CRAWL mean do a HEAD request the a GET request
    */
   void set_request_type(RequestType type) { this->type = type; }
   

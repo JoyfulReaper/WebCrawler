@@ -24,6 +24,7 @@
 #ifndef _WC_CRAWLER_H_
 #define _WC_CRAWLER_H_
 
+#include "logger/logger.hpp"
 #include <boost/asio.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <memory>
@@ -43,9 +44,14 @@ public:
 
   void start();
   
+  bool check_if_header_text_html(http_request &request);
+  
+  bool check_if_html(http_request &request);
+  
   void process_robots(std::string domain, std::string protocol, sqlite &db);
 
 private:
+  Logger logger;
   asio::io_service io_service;
   std::deque<std::unique_ptr<http_request>> request_queue;
 };

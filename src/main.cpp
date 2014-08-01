@@ -23,10 +23,23 @@
 
 #include "crawler.hpp"
 
+#include <boost/asio.hpp>
+#include "http_client.hpp"
+#include "http_request.hpp"
+
 int main(int argc, char **argv)
 {
-  Crawler crawler;
-  crawler.start();
   
+  if(argc == 3)
+  {
+    boost::asio::io_service io;
+    http_request r(argv[1], argv[2]);
+    http_client c(io, r);
+    io.run();
+    std::cout << r.get_data();
+  } else {
+    Crawler crawler;
+    crawler.start();
+  }
   return 0;
 }

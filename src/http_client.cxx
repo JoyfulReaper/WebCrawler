@@ -20,6 +20,7 @@
 #include "http_request.hpp"
 #include <boost/bind.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/algorithm/string/case_conv.hpp>
 #include <sstream>
 
 http_client::http_client(asio::io_service &io_service, http_request &request) 
@@ -116,8 +117,7 @@ void http_client::make_request(
     request_stream << "Host: " << request.get_server() << "\r\n";
     request_stream << "Accept: */*\r\n";
     request_stream << "Connection: close\r\n\r\n";
-  } else if (request.get_request_type() == RequestType::HEAD || // Head request
-              request.get_request_type() == RequestType::CRAWL)
+  } else if (request.get_request_type() == RequestType::HEAD) // Head request
   {
     request_stream << "HEAD " << request.get_path() << " HTTP/1.0\r\n";
     request_stream << "User-Agent: ShittyC++Bot\r\n";
@@ -305,22 +305,6 @@ void http_client::handle_read_headers(
     {
       logger.debug(header);
       request.add_header(header + "\n");
-      std::size_t found = header.find("Content-Type: text/html");
-      if(found != std::string::npos && request.get_request_type() == RequestType::CRAWL)
-      {
-        request.set_request_type(RequestType::GET);
-        request.reset_buffers();
-        request.reset_errors();
-        make_request(request);
-      } else if (found == std::string::npos && request.get_request_type() == RequestType::CRAWL)
-      {
-        if(request.get_status_code() == 200)
-        {
-          logger.warn("Should blacklist: Not html");
-          request.should_blacklist(true, "Not text/html");
-          stop(request, "Not text/html");
-        }
-      }
     }
     
     if(request.get_response_buf().size() > 0)
@@ -375,6 +359,7 @@ void http_client::handle_read_headers(
                 {
                   request.should_blacklist(true, "redirect loop");
                   stop(request, "Redirect loop");
+                  return;
                 }
                 make_request(request);
               } else {

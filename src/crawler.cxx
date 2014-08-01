@@ -28,8 +28,10 @@
 #include <boost/bind.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <iostream>
+#include <gumbo.h>
 
 Crawler::Crawler()
+  : logger("Crawler")
 {
 }
  
@@ -39,31 +41,29 @@ Crawler::~Crawler()
  
 void Crawler::start()
 {
-  // Reasonably solid single request at a time
+  // Reasonably solid for single request at a time
   
   sqlite db("test.db");
 
-  auto links = db.get_links(100);
+  auto links = db.get_links(500);
   for(auto &link : links)
   {
     std::unique_ptr<http_request> r(new http_request(
       std::get<0>(link), std::get<1>(link) ) );
       
     r->set_protocol( std::get<2>(link) );
-    r->set_request_type(RequestType::CRAWL);
+    r->set_request_type(RequestType::HEAD);
     request_queue.push_back(std::move(r));
   }
-
+  
+  sleep(5);
+  
   while(!request_queue.empty())
   {
     http_request *r = request_queue.front().get();
     process_robots(r->get_server(), r->get_protocol(), db);
-    
-    //if(db.check_blacklist(r->get_server(), r->get_path(), r->get_protocol()))
-    //{
-    //  request_queue.pop_front();
-    //  continue;
-    //}
+    if(!check_if_header_text_html(*r))
+      continue;
     
     http_client c(io_service, *r);
     io_service.run();
@@ -75,7 +75,7 @@ void Crawler::start()
       std::cout << "No data?\n";
       db.set_visited(r->get_server(), r->get_path(), r->get_protocol());
       request_queue.pop_front();
-      sleep(1);
+      sleep(3);
     }
 
     if(r->should_blacklist())
@@ -87,6 +87,66 @@ void Crawler::start()
   return;
 }
 
+bool Crawler::check_if_header_text_html(http_request &request)
+{
+  http_client c(io_service, request);
+  io_service.run();
+  io_service.reset();
+  request.set_request_type(RequestType::GET);
+  auto headers = request.get_headers();
+  for(auto &header : headers)
+  {
+    std::string lower_header = header;
+    boost::to_lower(lower_header);
+    std::size_t found;
+    if( (found = lower_header.find("content-type: text/html") ) != std::string::npos)
+    {
+      logger.warn("IS HTML");
+      return true;
+    }
+  }
+  logger.warn("!!!!!!!!!!!!!!!!!!!!    NOT HTML  !!!!!!!!!!!!!!!!!!!!!!!!!");
+  return false;
+  
+  //http_clientc2(io_service, request);
+  //io_service.run();
+  //io_service.reset();
+  //if(check_if_html(request))
+  //  return true;
+  //else
+  //  return false;
+}
+
+bool Crawler::check_if_html(http_request &request)
+{
+  if( request.get_status_code() != 200 || request.get_status_code() == 0)
+    return false;
+  
+  bool is_html = false;
+  GumboOutput *output = gumbo_parse(request.get_data().c_str());
+  GumboNode *node = output->root;
+  
+  if(node->v.element.tag == GUMBO_TAG_HTML)
+   is_html = true;
+  
+  if(!is_html)
+  { // Pretty sure this should never be needed, but just in case
+    while(node->type == GUMBO_NODE_ELEMENT)
+    {
+      GumboVector *children = &node->v.element.children;
+      for(std::size_t i = 0; i < children->length; i++)
+        if(static_cast<GumboNode*>(children->data[i])->v.element.tag == GUMBO_TAG_HTML)
+        {
+          logger.warn("I guess it was needed!");
+          is_html = true;
+          break;
+        }
+    }
+  }
+  
+  gumbo_destroy_output(&kGumboDefaultOptions, output);
+  return is_html;
+}
 
 void Crawler::process_robots(std::string domain, std::string protocol, sqlite &db)
 {
