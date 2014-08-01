@@ -74,7 +74,7 @@ public:
   /**
    * @param path Path/Resource associated with this http_request
    */
-  void set_path(std::string) { this->path = path; }
+  void set_path(std::string path) { this->path = path; }
 
   /**
    * @return The HTTP version the server is using

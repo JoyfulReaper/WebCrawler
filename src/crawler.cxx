@@ -49,8 +49,13 @@ void Crawler::receive_http_request(std::unique_ptr<http_request> r)
 {
   io_service.reset();
   
-  if(r->get_path() == "robots.txt")
+  logger.info("Queue size: " + request_queue.size());
+  
+  if(r->get_path() == "/robots.txt")
+  {
     process_robots(*r);
+    prepare_next_request();
+  }
     
   if(r->get_request_type() == RequestType::HEAD)
   {
@@ -79,7 +84,7 @@ void Crawler::prepare_next_request()
     std::string path = std::get<1>(r);
     std::string protocol = std::get<2>(r);
     
-    if(protocol != "http" || protocol != "https")
+    if(protocol != "http" && protocol != "https")
       protocol = "http";
     
     std::unique_ptr<http_request> request(
@@ -90,7 +95,6 @@ void Crawler::prepare_next_request()
     {
       request->set_path("/robots.txt");
       request->set_request_type(RequestType::GET);
-      request_queue.pop_front();
     }
     
     do_request(std::move(request));
@@ -114,7 +118,7 @@ void Crawler::start()
 
   http_client client(io_service);
 
-  auto links = db.get_links(5);
+  auto links = db.get_links(50);
   for(auto &link : links)
     request_queue.push_back(link);
 

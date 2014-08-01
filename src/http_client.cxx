@@ -210,7 +210,7 @@ void http_client::handle_handshake(
   } else {
     logger.warn("Handshake: " + err.message());
     request->add_error ("Error: " + err.message());
-    stop(request, "handle_handshake");
+    //stop(request, "handle_handshake");
   }
 }
 
