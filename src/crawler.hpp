@@ -83,7 +83,9 @@ private:
   sqlite db;
   Logger logger;
   
-  void do_request();
+  void do_request(std::unique_ptr<http_request> request);
+  
+  void prepare_next_request();
   
   /**
    * Close the database and exit
@@ -95,7 +97,7 @@ private:
    * @param domain The domain
    * @param protocol http or https
    */
-  void process_robots(http_request &request, sqlite &db);
+  void process_robots(http_request &request);
 };
 
 #endif

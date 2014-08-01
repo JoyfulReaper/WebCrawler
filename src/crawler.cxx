@@ -47,12 +47,30 @@ Crawler::~Crawler()
  
 void Crawler::receive_http_request(std::unique_ptr<http_request> r)
 {
-  std::cout << "Whoop here it is\n";
   io_service.reset();
-  do_request();
+  
+  if(r->get_path() == "robots.txt")
+    process_robots(*r);
+    
+  if(r->get_request_type() == RequestType::HEAD)
+  {
+    if (check_if_header_text_html(*r))
+    {
+      r->set_request_type(RequestType::GET);
+      do_request(std::move(r));
+    }
+  }
+  
+  db.add_links(r->get_links());
+  db.set_visited(r->get_server(), r->get_path(), r->get_protocol(), 
+    r->get_status_code());
+  request_queue.pop_front();
+  
+  prepare_next_request();
+  
 }
 
-void Crawler::do_request()
+void Crawler::prepare_next_request()
 {
   if(!request_queue.empty())
   {
@@ -60,21 +78,33 @@ void Crawler::do_request()
     std::string server = std::get<0>(r);
     std::string path = std::get<1>(r);
     std::string protocol = std::get<2>(r);
+    
     if(protocol != "http" || protocol != "https")
       protocol = "http";
     
-    request_queue.pop_front();
-    
     std::unique_ptr<http_request> request(
       new http_request(*this, server, path, protocol));
-      
-    client.make_request(std::move(request));
+    request->set_request_type(RequestType::HEAD);
     
-    io_service.run();
+    if(db.should_process_robots(server, protocol) )
+    {
+      request->set_path("/robots.txt");
+      request->set_request_type(RequestType::GET);
+      request_queue.pop_front();
+    }
+    
+    do_request(std::move(request));
+    
   } else {
     std::cerr << "Empty queue\n";
     exit(0);
   }
+}
+
+void Crawler::do_request(std::unique_ptr<http_request> request)
+{
+  client.make_request(std::move(request));
+  io_service.run();
 }
 
 void Crawler::start()
@@ -88,7 +118,7 @@ void Crawler::start()
   for(auto &link : links)
     request_queue.push_back(link);
 
-  do_request();
+  prepare_next_request();
 }
 
 
@@ -109,6 +139,59 @@ bool Crawler::check_if_header_text_html(http_request &request)
   logger.warn("!!!!!!!!!!!!!!!!!!!!  Probably Not HTML  !!!!!!!!!!!!!!!!!!!!!!!!!");
   request.should_blacklist(true, "probably not html");
   return false;
+}
+
+void Crawler::process_robots(http_request &request)
+{
+  // Follow SOME robots.txt rules...
+  // Not fully compliant
+
+  v_links blacklist;
+  std::string line;
+  bool foundUserAgent = false;
+  std::size_t found;
+  
+  std::istringstream ss(request.get_data());
+  while(!ss.eof())
+  {
+    getline(ss, line);
+    boost::to_lower(line);
+    if( (found = line.find("#")) != std::string::npos )
+      line = line.substr(0, found);
+      
+    if( (found = line.find("user-agent: ")) != std::string::npos)
+    {
+      if( (found = line.find("user-agent: *")) != std::string::npos)
+      {
+        foundUserAgent = true;
+      } else {
+        foundUserAgent = false;
+      }
+    }
+    
+    if( foundUserAgent && (found = line.find("disallow: ")) != std::string::npos)
+    {
+      std::string disallow = line.substr(10, line.length());
+      std::tuple<std::string,std::string,std::string> link(request.get_server(), 
+        disallow, request.get_protocol());
+      blacklist.push_back(link);
+    }
+  }
+  if(!blacklist.empty());
+    db.blacklist(blacklist, "robots.txt");
+  db.set_robot_processed(request.get_server(), request.get_protocol());
+}
+
+void Crawler::seed(std::string domain, std::string path)
+{
+  db.add_link(domain + path);
+}
+
+void Crawler::handle_stop()
+{
+  std::cerr << "\nCaught signal\n";
+  db.close_db();
+  exit(0);
 }
 
 bool Crawler::check_if_html(http_request &request)
@@ -139,61 +222,4 @@ bool Crawler::check_if_html(http_request &request)
   
   gumbo_destroy_output(&kGumboDefaultOptions, output);
   return is_html;
-}
-
-void Crawler::process_robots(http_request &request, sqlite &db)
-{
-  // Follow SOME robots.txt rules...
-  // Not fully compliant
-  
-  std::string domain = request.get_server();
-  if( !db.should_process_robots(domain, request.get_protocol()) )
-    return;
-
-  v_links blacklist;
-  std::string line;
-  bool foundUserAgent = false;
-  std::size_t found;
-  
-  std::istringstream ss(request.get_data());
-  while(!ss.eof())
-  {
-    getline(ss, line);
-    boost::to_lower(line);
-    if( (found = line.find("#")) != std::string::npos )
-      line = line.substr(0, found);
-      
-    if( (found = line.find("user-agent: ")) != std::string::npos)
-    {
-      if( (found = line.find("user-agent: *")) != std::string::npos)
-      {
-        foundUserAgent = true;
-      } else {
-        foundUserAgent = false;
-      }
-    }
-    
-    if( foundUserAgent && (found = line.find("disallow: ")) != std::string::npos)
-    {
-      std::string disallow = line.substr(10, line.length());
-      std::tuple<std::string,std::string,std::string> link(domain, disallow, 
-        request.get_protocol());
-      blacklist.push_back(link);
-    }
-  }
-  if(!blacklist.empty());
-    db.blacklist(blacklist, "robots.txt");
-  db.set_robot_processed(domain, request.get_protocol());
-}
-
-void Crawler::seed(std::string domain, std::string path)
-{
-  db.add_link(domain + path);
-}
-
-void Crawler::handle_stop()
-{
-  std::cerr << "\nCaught signal\n";
-  db.close_db();
-  exit(0);
 }
