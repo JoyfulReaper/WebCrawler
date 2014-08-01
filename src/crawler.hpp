@@ -70,7 +70,7 @@ public:
    * @param domain The domain
    * @param protocol http or https
    */
-  void process_robots(std::string domain, std::string protocol, sqlite &db);
+  void process_robots(http_request &request, sqlite &db);
   
   /**
    * Add the given URL to the database to be processed
