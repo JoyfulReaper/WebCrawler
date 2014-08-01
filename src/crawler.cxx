@@ -22,7 +22,6 @@
  */
  
 #include "crawler.hpp"
-#include "http_client.hpp"
 #include <boost/bind.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <iostream>
@@ -30,10 +29,11 @@
 #include <csignal>
 
 Crawler::Crawler()
-  : logger("Crawler"),
+  : client(io_service),
     signals(io_service),
+    strand(io_service),
     db("test.db"),
-    strand(io_service)
+    logger("Crawler")
 {
   signals.add(SIGINT);
   signals.add(SIGTERM);
@@ -47,23 +47,48 @@ Crawler::~Crawler()
  
 void Crawler::receive_http_request(std::unique_ptr<http_request> r)
 {
-
+  std::cout << "Whoop here it is\n";
+  io_service.reset();
+  do_request();
 }
- 
+
+void Crawler::do_request()
+{
+  if(!request_queue.empty())
+  {
+    auto r = request_queue.front();
+    std::string server = std::get<0>(r);
+    std::string path = std::get<1>(r);
+    std::string protocol = std::get<2>(r);
+    if(protocol != "http" || protocol != "https")
+      protocol = "http";
+    
+    request_queue.pop_front();
+    
+    std::unique_ptr<http_request> request(
+      new http_request(*this, server, path, protocol));
+      
+    client.make_request(std::move(request));
+    
+    io_service.run();
+  } else {
+    std::cerr << "Empty queue\n";
+    exit(0);
+  }
+}
+
 void Crawler::start()
 {
   //asio::io_service::work work(io_service);
   //std::thread t(bind(&asio::io_service::run, &io_service));
 
+  http_client client(io_service);
+
   auto links = db.get_links(5);
   for(auto &link : links)
     request_queue.push_back(link);
 
-  while(!request_queue.empty())
-  {
-
-  }
-
+  do_request();
 }
 
 

@@ -39,7 +39,8 @@ class http_request
 public:
   http_request(request_reciver &reciver,
     std::string server, 
-    std::string path);
+    std::string path,
+    std::string protocol);
   
   virtual ~http_request();
 

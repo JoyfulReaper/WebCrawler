@@ -27,9 +27,14 @@
 
 
 
-http_request::http_request(request_reciver &reciver, std::string server, std::string path)
+http_request::http_request(
+  request_reciver &reciver, 
+  std::string server,
+  std::string path,
+  std::string protocol)
   : server(server),
     path(path),
+    protocol(protocol),
     reciver(&reciver),
     logger("http_request")
 {

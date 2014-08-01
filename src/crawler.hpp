@@ -24,13 +24,15 @@
 #ifndef _WC_CRAWLER_H_
 #define _WC_CRAWLER_H_
 
-#include "logger/logger.hpp"
-#include "sqlite.hpp"
 #include <boost/asio.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
+
 #include <memory>
 #include <deque>
-#include <unordered_map>
+
+#include "logger/logger.hpp"
+#include "sqlite.hpp"
+#include "http_client.hpp"
 #include "request_reciver.hpp"
 
 using namespace boost;
@@ -49,8 +51,6 @@ public:
    */
   void start();
   
-  void cb_test(std::unique_ptr<http_request> r);
-  
   /**
    * Check if the given resources retuns the Content: text/html header
    * @param request The resource to check
@@ -65,12 +65,6 @@ public:
    */
   bool check_if_html(http_request &request);
   
-  /**
-   * Process a sites robots.txt
-   * @param domain The domain
-   * @param protocol http or https
-   */
-  void process_robots(http_request &request, sqlite &db);
   
   /**
    * Add the given URL to the database to be processed
@@ -79,20 +73,29 @@ public:
    */
   void seed(std::string domain, std::string path);
   
+
+private:
+  asio::io_service io_service;
+  http_client client;
+  std::deque<std::tuple<std::string,std::string,std::string>> request_queue;
+  asio::signal_set signals;
+  asio::strand strand;
+  sqlite db;
+  Logger logger;
+  
+  void do_request();
+  
   /**
    * Close the database and exit
    */
   void handle_stop();
-
-private:
-  Logger logger;
-  asio::io_service io_service;
-  std::deque<std::tuple<std::string,std::string,std::string>> request_queue;
-  asio::signal_set signals;
-  sqlite db;
-  asio::strand strand;
   
-  void do_request(std::tuple<std::string,std::string,std::string> r_tuple);
+  /**
+   * Process a sites robots.txt
+   * @param domain The domain
+   * @param protocol http or https
+   */
+  void process_robots(http_request &request, sqlite &db);
 };
 
 #endif
