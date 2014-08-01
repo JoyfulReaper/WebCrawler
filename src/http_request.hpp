@@ -28,18 +28,22 @@
 #include <gumbo.h>
 #include <string>
 #include <vector>
+#include <memory>
 #include <logger/logger.hpp>
 
 enum class RequestType { HEAD, GET};
+class request_reciver;
 
 class http_request
 {
 public:
-  http_request(std::string server = "NULL", 
-    std::string path = "/", 
-    unsigned int port = 80);
+  http_request(request_reciver &reciver,
+    std::string server, 
+    std::string path);
   
   virtual ~http_request();
+
+  void call_request_reciver(std::unique_ptr<http_request> r);
 
   /**
    * @return port associated with this http_request
@@ -218,21 +222,22 @@ public:
 private:
   std::string server = "NULL";
   std::string path = "NULL";
+  std::string data;
+  std::string request;
+  std::string http_version = "NULL";
+  std::string protocol = "http";
+  std::string blacklist_reason = "default";
   unsigned int port = 80;
   RequestType type = RequestType::GET;
   boost::asio::streambuf response_buf;
   boost::asio::streambuf request_buf;
   std::vector<std::string> errors;
-  std::string http_version = "NULL";
-  unsigned int status_code = 0;
   std::vector<std::string> headers;
-  std::string data;
-  std::string request;
+  unsigned int status_code = 0;
   bool requestCompleted = false;
-  Logger logger;
-  std::string protocol = "http";
   bool blacklist = false;
-  std::string blacklist_reason = "default";
+  request_reciver *reciver;
+  Logger logger;
   
   void search_for_links(GumboNode *node, std::vector<std::string> &links);
 };

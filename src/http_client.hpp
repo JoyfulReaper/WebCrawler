@@ -44,9 +44,11 @@ using namespace boost;
 class http_client
 {
 public:
-  http_client(asio::io_service &io_service, http_request &request);
+  http_client(asio::io_service &io_service);
   
   virtual ~http_client();
+  
+  void make_request(std::unique_ptr<http_request> request);
 
 private:
   asio::io_service &io_service;
@@ -61,40 +63,40 @@ private:
   bool stopped = false;
   bool requested_content = false;
 
-  void stop(const http_request &request, std::string from);
+  void stop(
+    http_request *request, 
+    std::string from);
   
-  void check_deadline(const http_request &request);
-
-  void make_request(http_request &request);
+  void check_deadline(http_request *request);
 
   void handle_resolve(
     const system::error_code &err, 
     tcp::resolver::iterator endpoint_it, 
-    http_request &request);
+    http_request *request);
 
   void handle_connect(
     const system::error_code &err, 
-    http_request &request);
+    http_request *request);
 
   void handle_handshake(
     const system::error_code &err, 
-    http_request &request);
+    http_request *request);
 
   void handle_write_request(
     const system::error_code &err, 
-    http_request &request);
+    http_request *request);
 
   void handle_read_status_line(
     const system::error_code &err, 
-    http_request &request);
+    http_request *request);
 
   void handle_read_headers(
     const system::error_code &err, 
-    http_request &request);
+    http_request *request);
 
   void handle_read_content(
     const system::error_code &err, 
-    http_request &request);
+    http_request *request);
 };
 
 #endif

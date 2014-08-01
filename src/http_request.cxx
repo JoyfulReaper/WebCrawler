@@ -21,20 +21,28 @@
  * @author Kyle Givler
  */
 
-#include "http_request.hpp"
+#include "request_reciver.hpp"
 #include <boost/algorithm/string/case_conv.hpp>
 #include <cstdlib>
 
-http_request::http_request(std::string server, std::string path, unsigned int port)
+
+
+http_request::http_request(request_reciver &reciver, std::string server, std::string path)
   : server(server),
     path(path),
-    port(port),
+    reciver(&reciver),
     logger("http_request")
 {
   logger.setIgnoreLevel(Level::TRACE);
 }
 
 http_request::~http_request() {}
+
+void http_request::call_request_reciver(std::unique_ptr<http_request> r) 
+{ 
+  reciver->receive_http_request(std::move(r)); 
+}
+
 
 std::vector<std::string> http_request::get_links()
 {

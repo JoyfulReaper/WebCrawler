@@ -31,21 +31,25 @@
 #include <memory>
 #include <deque>
 #include <unordered_map>
+#include "request_reciver.hpp"
 
 using namespace boost;
-class http_request;
 
-class Crawler
+class Crawler : public request_reciver
 {
 public:
   Crawler();
 
   virtual ~Crawler();
 
+  void receive_http_request(std::unique_ptr<http_request> r);
+
   /**
    * Start the crawl
    */
   void start();
+  
+  void cb_test(std::unique_ptr<http_request> r);
   
   /**
    * Check if the given resources retuns the Content: text/html header
@@ -83,9 +87,12 @@ public:
 private:
   Logger logger;
   asio::io_service io_service;
-  std::deque<std::unique_ptr<http_request>> request_queue;
+  std::deque<std::tuple<std::string,std::string,std::string>> request_queue;
   asio::signal_set signals;
   sqlite db;
+  asio::strand strand;
+  
+  void do_request(std::tuple<std::string,std::string,std::string> r_tuple);
 };
 
 #endif
