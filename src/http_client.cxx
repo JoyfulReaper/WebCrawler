@@ -75,6 +75,7 @@ void http_client::make_request(
   http_request &request)
 {
   stopped = false;
+  http_client::requested_content = false;
   deadline.expires_from_now(posix_time::seconds(45));
   deadline.async_wait( boost::bind( &http_client::check_deadline, this, ref(request)) );
   
@@ -112,6 +113,7 @@ void http_client::make_request(
   }
   else if (request.get_request_type() == RequestType::GET) // Get request
   {
+    logger.debug("GET REQUEST");
     request_stream << "GET " << request.get_path() << " HTTP/1.0\r\n";
     request_stream << "User-Agent: ShittyC++Bot\r\n";
     request_stream << "Host: " << request.get_server() << "\r\n";
@@ -119,6 +121,7 @@ void http_client::make_request(
     request_stream << "Connection: close\r\n\r\n";
   } else if (request.get_request_type() == RequestType::HEAD) // Head request
   {
+    logger.debug("HEAD REQUEST");
     request_stream << "HEAD " << request.get_path() << " HTTP/1.0\r\n";
     request_stream << "User-Agent: ShittyC++Bot\r\n";
     request_stream << "Host: " << request.get_server() << "\r\n";
@@ -359,7 +362,6 @@ void http_client::handle_read_headers(
                 {
                   request.should_blacklist(true, "redirect loop");
                   stop(request, "Redirect loop");
-                  return;
                 }
                 make_request(request);
               } else {
@@ -401,7 +403,13 @@ void http_client::handle_read_content(
   //logger.trace("handle_read_content: " + request.get_server());
   
   if(!err)
-  {    
+  {
+    if(!requested_content)
+    {
+      requested_content = true;
+      logger.warn("Requested content");
+    }
+    
     std::ostringstream ss;
     ss << &request.get_response_buf();
     request.get_data().append(ss.str());

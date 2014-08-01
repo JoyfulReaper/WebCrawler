@@ -38,27 +38,55 @@ public:
 
   virtual ~sqlite();
   
+  void close_db();
+  
   void add_links(std::vector<std::string> links);
   
-  bool get_visited(std::string domain, std::string path, std::string protocol);
+  bool get_visited(
+    std::string domain, 
+    std::string path, 
+    std::string protocol);
   
-  void set_visited(std::string domain, std::string path, std::string protocol);
+  void set_visited(
+    std::string domain,
+    std::string path, 
+    std::string protocol,
+    unsigned int code);
   
-  void set_last_visited(std::string domain, std::string path, std::string protocol);
+  void set_last_visited(
+    std::string domain, 
+    std::string path, 
+    std::string protocol);
   
   v_links get_links(std::size_t num);
   
-  bool check_blacklist(std::string domain, std::string path, std::string proto);
+  bool check_blacklist(
+    std::string domain, 
+    std::string path, 
+    std::string proto);
   
-  void remove_link(std::string domain, std::string path, std::string protocol);
+  void remove_link(
+    std::string domain, 
+    std::string path, 
+    std::string protocol);
   
-  void blacklist(v_links blacklist, std::string reason = "default");
+  void blacklist(
+    v_links blacklist, 
+    std::string reason = "default");
   
-  void blacklist(std::string, std::string, std::string, std::string reason = "default");
+  void blacklist(
+    std::string, 
+    std::string, 
+    std::string, 
+    std::string reason = "default");
   
-  void set_robot_processed(std::string server, std::string protocol);
+  void set_robot_processed(
+    std::string server, 
+    std::string protocol);
   
-  bool should_process_robots(std::string domain, std::string protocol);
+  bool should_process_robots(
+    std::string domain, 
+    std::string protocol);
 
 private:
   std::string databaseFile;

@@ -31,6 +31,10 @@ sqlite::sqlite(std::string databaseFile)
   : databaseFile(databaseFile),
     logger("sqlite")
 {
+  
+  // Check if table exists:
+  // SELECT name FROM sqlite_master WHERE type='table' AND name = 'Links'
+  
   int rc = sqlite3_open_v2(databaseFile.c_str(), &db, SQLITE_OPEN_READWRITE
     | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, 0);
   if(rc != SQLITE_OK)
@@ -50,7 +54,14 @@ sqlite::sqlite(std::string databaseFile)
 
 sqlite::~sqlite()
 {
-  sqlite3_close(db);
+  close_db();
+}
+
+void sqlite::close_db()
+{
+  int rc = sqlite3_close_v2(db);
+  if(rc != SQLITE_OK)
+    logger.error("Unable to close DB");
 }
 
 void sqlite::add_links(std::vector<std::string> links)
@@ -111,6 +122,8 @@ void sqlite::add_links(std::vector<std::string> links)
         errmsg.append(sqlite3_errstr(rc));
         errmsg.append(" " + sql);
         throw(CrawlerException(errmsg));
+      } else {
+        logger.trace("Already in DB: " + domain + path);
       }
     }
   }
@@ -159,12 +172,14 @@ bool sqlite::get_visited(
 void sqlite::set_visited(
   std::string domain,
   std::string path,
-  std::string protocol)
+  std::string protocol,
+  unsigned int code)
 {
   sqlite3_stmt *statement;
   
   std::string sql = "UPDATE Links SET visited = '1' WHERE domain = '" \
-    + domain + "' AND PATH = '" + path + "' AND protocol = '" + protocol + "';";
+    + domain + "' AND PATH = '" + path + "' AND protocol = '" + protocol \
+    + "' AND lastCode = '" + std::to_string(code) + "';";
     
   int rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
   if(rc != SQLITE_OK)
@@ -372,16 +387,18 @@ void sqlite::blacklist(
   std::string sql = "INSERT OR REPLACE INTO Blacklist (domain,path,protocol,reason) " \
       "VALUES ('" + domain + "', '" + path + "', '" + protocol + "', '" \
       + reason + "');";
-      
-    char *err = 0;
-    int rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
-    if(rc != SQLITE_OK)
-    {
-      std::string errmsg = "sql_blacklist_single: ";
-      errmsg.append(sqlite3_errstr(rc));
-      errmsg.append(" " + sql);
-      throw(CrawlerException(errmsg));
-    }
+
+  logger.info("Blacklisting: " + protocol + "://" + domain + path + " ( " + reason + ")");
+
+  char *err = 0;
+  int rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
+  if(rc != SQLITE_OK)
+  {
+    std::string errmsg = "sql_blacklist_single: ";
+    errmsg.append(sqlite3_errstr(rc));
+    errmsg.append(" " + sql);
+    throw(CrawlerException(errmsg));
+  }
 }
 
 void sqlite::blacklist(v_links blacklist, std::string reason)
@@ -402,6 +419,8 @@ void sqlite::blacklist(v_links blacklist, std::string reason)
       continue;
     if( (found = path.find("?")) != std::string::npos )
       continue; // We don't add these anyway
+    
+    boost::algorithm::replace_all_copy(path, "'", "''");
     
     sql = "INSERT OR REPLACE INTO Blacklist (domain,path,protocol,reason) " \
       "VALUES ('" + domain + "', '" + path + "', '" + protocol + "', '" \

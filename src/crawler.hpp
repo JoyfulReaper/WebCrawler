@@ -25,6 +25,7 @@
 #define _WC_CRAWLER_H_
 
 #include "logger/logger.hpp"
+#include "sqlite.hpp"
 #include <boost/asio.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <memory>
@@ -33,7 +34,6 @@
 
 using namespace boost;
 class http_request;
-class sqlite;
 
 class Crawler
 {
@@ -49,11 +49,15 @@ public:
   bool check_if_html(http_request &request);
   
   void process_robots(std::string domain, std::string protocol, sqlite &db);
+  
+  void handle_stop();
 
 private:
   Logger logger;
   asio::io_service io_service;
   std::deque<std::unique_ptr<http_request>> request_queue;
+  asio::signal_set signals;
+  sqlite db;
 };
 
 #endif

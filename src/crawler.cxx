@@ -24,15 +24,21 @@
 #include "crawler.hpp"
 #include "http_client.hpp"
 #include "http_request.hpp"
-#include "sqlite.hpp"
 #include <boost/bind.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <iostream>
 #include <gumbo.h>
+#include <signal.h>
 
 Crawler::Crawler()
-  : logger("Crawler")
+  : logger("Crawler"),
+    signals(io_service),
+    db("test.db")
 {
+  signals.add(SIGINT);
+  signals.add(SIGTERM);
+  signals.add(SIGQUIT);
+  signals.async_wait(bind(&Crawler::handle_stop, this));
 }
  
 Crawler::~Crawler()
@@ -42,8 +48,9 @@ Crawler::~Crawler()
 void Crawler::start()
 {
   // Reasonably solid for single request at a time
+  // Multiple concurrent requests is not goal
   
-  sqlite db("test.db");
+  //sqlite db("test.db");
 
   auto links = db.get_links(500);
   for(auto &link : links)
@@ -62,24 +69,27 @@ void Crawler::start()
   {
     http_request *r = request_queue.front().get();
     process_robots(r->get_server(), r->get_protocol(), db);
-    if(!check_if_header_text_html(*r))
-      continue;
     
-    http_client c(io_service, *r);
-    io_service.run();
-    if(!r->get_data().empty())
-    {
-      db.set_visited(r->get_server(), r->get_path(), r->get_protocol());
-      db.add_links(r->get_links());
-    } else {
-      std::cout << "No data?\n";
-      db.set_visited(r->get_server(), r->get_path(), r->get_protocol());
-      request_queue.pop_front();
-      sleep(3);
+    if( check_if_header_text_html(*r) )
+      {
+      http_client c(io_service, *r);
+      io_service.run();
+      if(!r->get_data().empty())
+      {
+        db.set_visited(r->get_server(), r->get_path(), r->get_protocol(),
+          r->get_status_code());
+        db.add_links(r->get_links());
+      } else {
+        std::cout << "No data?\n";
+        db.set_visited(r->get_server(), r->get_path(), r->get_protocol(),
+          r->get_status_code());
+        request_queue.pop_front();
+      }
     }
-
     if(r->should_blacklist())
+    {
       db.blacklist(r->get_server(), r->get_path(), r->get_protocol(), r->get_blacklist_reason());
+    }
     
     request_queue.pop_front();
     io_service.reset();
@@ -92,7 +102,6 @@ bool Crawler::check_if_header_text_html(http_request &request)
   http_client c(io_service, request);
   io_service.run();
   io_service.reset();
-  request.set_request_type(RequestType::GET);
   auto headers = request.get_headers();
   for(auto &header : headers)
   {
@@ -101,11 +110,13 @@ bool Crawler::check_if_header_text_html(http_request &request)
     std::size_t found;
     if( (found = lower_header.find("content-type: text/html") ) != std::string::npos)
     {
+      request.set_request_type(RequestType::GET);
       logger.warn("IS HTML");
       return true;
     }
   }
   logger.warn("!!!!!!!!!!!!!!!!!!!!    NOT HTML  !!!!!!!!!!!!!!!!!!!!!!!!!");
+  request.should_blacklist(true, "not html");
   return false;
   
   //http_clientc2(io_service, request);
@@ -194,4 +205,11 @@ void Crawler::process_robots(std::string domain, std::string protocol, sqlite &d
     db.blacklist(blacklist, "robots.txt");
   db.set_robot_processed(domain, protocol);
   io_service.reset();
+}
+
+void Crawler::handle_stop()
+{
+  logger.debug("Caught signal");
+  db.close_db();
+  exit(0);
 }

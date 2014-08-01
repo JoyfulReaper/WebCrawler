@@ -31,7 +31,7 @@ http_request::http_request(std::string server, std::string path, unsigned int po
     port(port),
     logger("http_request")
 {
-  logger.setIgnoreLevel(Level::NONE);
+  logger.setIgnoreLevel(Level::TRACE);
 }
 
 http_request::~http_request() {}
@@ -94,6 +94,12 @@ void http_request::search_for_links(GumboNode *node, std::vector<std::string> &l
     if(found != std::string::npos)
     {
       logger.trace("Dropping link: " + link);
+      return;
+    }
+
+    if( (found = link.find("javascript:void(0)")) != std::string::npos)
+    {
+      logger.debug("Dropping link: "+ link);
       return;
     }
 

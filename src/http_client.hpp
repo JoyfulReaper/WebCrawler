@@ -41,7 +41,6 @@ class http_request;
 using boost::asio::ip::tcp;
 using namespace boost;
 
-
 class http_client
 {
 public:
@@ -60,6 +59,7 @@ private:
   asio::deadline_timer deadline;
   std::size_t redirect_count = 0;
   bool stopped = false;
+  bool requested_content = false;
 
   void stop(const http_request &request, std::string from);
   
