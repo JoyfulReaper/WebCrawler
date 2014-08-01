@@ -384,6 +384,8 @@ void sqlite::blacklist(
   std::string protocol,
   std::string reason)
 {
+  path = boost::algorithm::replace_all_copy(path, "'", "''");
+  
   std::string sql = "INSERT OR REPLACE INTO Blacklist (domain,path,protocol,reason) " \
       "VALUES ('" + domain + "', '" + path + "', '" + protocol + "', '" \
       + reason + "');";
@@ -420,7 +422,7 @@ void sqlite::blacklist(v_links blacklist, std::string reason)
     if( (found = path.find("?")) != std::string::npos )
       continue; // We don't add these anyway
     
-    boost::algorithm::replace_all_copy(path, "'", "''");
+    path = boost::algorithm::replace_all_copy(path, "'", "''");
     
     sql = "INSERT OR REPLACE INTO Blacklist (domain,path,protocol,reason) " \
       "VALUES ('" + domain + "', '" + path + "', '" + protocol + "', '" \
