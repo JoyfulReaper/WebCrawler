@@ -177,9 +177,9 @@ void sqlite::set_visited(
 {
   sqlite3_stmt *statement;
   
-  std::string sql = "UPDATE Links SET visited = '1' WHERE domain = '" \
-    + domain + "' AND PATH = '" + path + "' AND protocol = '" + protocol \
-    + "' AND lastCode = '" + std::to_string(code) + "';";
+  std::string sql = "UPDATE Links SET visited = '1', lastCode = '" + \
+    std::to_string(code) + "' WHERE domain = '" + domain + "' AND PATH = '" \
+    + path + "' AND protocol = '" + protocol + "';";
     
   int rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
   if(rc != SQLITE_OK)

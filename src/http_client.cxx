@@ -33,7 +33,7 @@ http_client::http_client(asio::io_service &io_service, http_request &request)
     ssl_sock(socket, sslctx),
     deadline(io_service)
 {
-  logger.setIgnoreLevel(Level::TRACE);
+  logger.setIgnoreLevel(Level::NONE);
   make_request(request);
 }
 
@@ -56,7 +56,7 @@ void http_client::stop(const http_request &request, std::string from)
 
 void http_client::check_deadline(const http_request &request)
 {
-  logger.trace("Timeout: " + request.get_server() + request.get_path());
+  //logger.trace("Timeout: " + request.get_server() + request.get_path());
   if(stopped)
     return;
     

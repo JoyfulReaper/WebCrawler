@@ -28,17 +28,17 @@
 #include <boost/algorithm/string/case_conv.hpp>
 #include <iostream>
 #include <gumbo.h>
-#include <signal.h>
+//#include <signal.h>
 
 Crawler::Crawler()
   : logger("Crawler"),
     signals(io_service),
     db("test.db")
 {
-  signals.add(SIGINT);
-  signals.add(SIGTERM);
-  signals.add(SIGQUIT);
-  signals.async_wait(bind(&Crawler::handle_stop, this));
+  //signals.add(SIGINT);
+  //signals.add(SIGTERM);
+  //signals.add(SIGQUIT);
+  //signals.async_wait(bind(&Crawler::handle_stop, this));
 }
  
 Crawler::~Crawler()
@@ -52,7 +52,7 @@ void Crawler::start()
   
   //sqlite db("test.db");
 
-  auto links = db.get_links(500);
+  auto links = db.get_links(100);
   for(auto &link : links)
   {
     std::unique_ptr<http_request> r(new http_request(
@@ -209,7 +209,7 @@ void Crawler::process_robots(std::string domain, std::string protocol, sqlite &d
 
 void Crawler::handle_stop()
 {
-  logger.debug("Caught signal");
+  std::cerr << "\nCaught signal\n";
   db.close_db();
   exit(0);
 }
