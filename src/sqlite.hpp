@@ -82,9 +82,9 @@ public:
     std::string reason = "default");
   
   void blacklist(
-    std::string, 
-    std::string, 
-    std::string, 
+    std::string domain, 
+    std::string path, 
+    std::string protocol, 
     std::string reason = "default");
   
   void set_robot_processed(

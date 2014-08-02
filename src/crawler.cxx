@@ -49,7 +49,7 @@ void Crawler::receive_http_request(std::unique_ptr<http_request> r)
 {
   io_service.reset();
   
-  logger.info("Queue size: " + request_queue.size());
+  logger.info("Queue size: " + std::to_string(request_queue.size()));
   
   if(r->get_path() == "/robots.txt")
   {
@@ -66,9 +66,15 @@ void Crawler::receive_http_request(std::unique_ptr<http_request> r)
     }
   }
   
+  if(r->should_blacklist())
+    db.blacklist(r->get_server(), r->get_path(), r->get_protocol(), 
+      r->get_blacklist_reason());
+    
   db.add_links(r->get_links());
   db.set_visited(r->get_server(), r->get_path(), r->get_protocol(), 
     r->get_status_code());
+  
+  
   request_queue.pop_front();
   
   prepare_next_request();
@@ -118,7 +124,7 @@ void Crawler::start()
 
   http_client client(io_service);
 
-  auto links = db.get_links(50);
+  auto links = db.get_links(1000);
   for(auto &link : links)
     request_queue.push_back(link);
 
