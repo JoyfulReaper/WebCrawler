@@ -373,6 +373,7 @@ void http_client::handle_read_headers(
                 request->reset_errors();
                 request->set_server(server);
                 request->set_path(resource);
+                logger.warn("Redir to: " + request->get_protocol() + "://" + request->get_server() + request->get_path() + " port: " + std::to_string(request->get_port()));
                 redirect_count++;
                 make_request(request);
               }

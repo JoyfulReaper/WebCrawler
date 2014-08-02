@@ -47,7 +47,7 @@ http_request::~http_request() {}
 
 void http_request::call_request_reciver(http_request *r) 
 { 
-  reciver->receive_http_request(std::move(r)); 
+  reciver->receive_http_request(r); 
 }
 
 

@@ -48,16 +48,6 @@ Crawler::~Crawler()
 void Crawler::receive_http_request(http_request *r)
 {
   io_service.reset();
-  logger.info("Queue size: " + std::to_string(request_queue.size()));
-  std::size_t found;
-  if( (found = r->get_path().find("/robots.txt") ) == 0)
-  {
-    process_robots(r->get_server(), r->get_path(), r->get_protocol(), 
-      r->get_data());
-    logger.info("Deleting pointer bot");
-    delete(r);
-    prepare_next_request(0);
-  }
   
   auto org = request_queue.front();
   std::string org_domain = std::get<0>(org);
@@ -65,17 +55,36 @@ void Crawler::receive_http_request(http_request *r)
   std::string org_proto = std::get<2>(org);
   
   // We were redirected
-  if(r->get_server() != org_domain)
+  if(r->get_server() != org_domain || r->get_path() != org_path)
+  {
     r->set_server(org_domain);
-  if(r->get_path() != org_path)
     r->set_path(org_path);
-
+    if(org_path == "/robots.txt")
+    {
+        process_robots(org_domain, org_path, org_proto,
+          r->get_data());
+        delete(r);
+        logger.info("Deleting pointer after robots rediret");
+        prepare_next_request(RequestType::HEAD);
+    }
+  }
+  
+  logger.info("Queue size: " + std::to_string(request_queue.size()));
+  std::size_t found;
+  if( (found = r->get_path().find("/robots.txt") ) == 0)
+  {
+    process_robots(r->get_server(), r->get_path(), r->get_protocol(), 
+      r->get_data());
+    logger.info("Deleting pointer after robots");
+    delete(r);
+    prepare_next_request(RequestType::HEAD);
+  }
   
   if(r->get_request_type() == RequestType::HEAD)
   {
     if(check_if_header_text_html(r->get_headers()))
     {
-      prepare_next_request(1);
+      prepare_next_request(RequestType::GET);
     } else {
       r->should_blacklist(true, "Probably not HTML");
     }
@@ -94,10 +103,10 @@ void Crawler::receive_http_request(http_request *r)
   request_queue.pop_front();
   logger.info("Deleting pointer");
   delete(r);
-  prepare_next_request(0);
+  prepare_next_request(RequestType::HEAD);
 }
 
-void Crawler::prepare_next_request(int t)
+void Crawler::prepare_next_request(RequestType type)
 {
   if(!request_queue.empty())
   {
@@ -106,12 +115,18 @@ void Crawler::prepare_next_request(int t)
     std::string path = std::get<1>(t_request);
     std::string protocol = std::get<2>(t_request);
     
+    logger.info("Creating pointer");
     http_request *request = new http_request(*this, domain, path, 
       protocol);
-    if(!t)
+    if(type == RequestType::HEAD)
       request->set_request_type(RequestType::HEAD);
-    else
+    else if (type == RequestType::GET)
       request->set_request_type(RequestType::GET);
+    else
+    {
+      std::cerr << "Unknown request type\n";
+      exit(1);
+    }
     
     
     if(db.should_process_robots(domain, protocol))
@@ -146,7 +161,7 @@ void Crawler::start()
   for(auto &link : links)
     request_queue.push_back(link);
 
-  prepare_next_request(0);
+  prepare_next_request(RequestType::HEAD);
 }
 
 

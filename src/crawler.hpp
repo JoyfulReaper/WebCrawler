@@ -27,7 +27,6 @@
 #include <boost/asio.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 
-#include <memory>
 #include <deque>
 
 #include "logger/logger.hpp"
@@ -53,7 +52,7 @@ public:
   
   /**
    * Check if the given resources retuns the Content: text/html header
-   * @param request The resource to check
+   * @param A vector of headers to check
    * @return true if html/text or false if the header wasn't sent
    */
   bool check_if_header_text_html(
@@ -86,7 +85,7 @@ private:
   
   void do_request(http_request *request);
   
-  void prepare_next_request(int t);
+  void prepare_next_request(RequestType type);
   
   /**
    * Close the database and exit
