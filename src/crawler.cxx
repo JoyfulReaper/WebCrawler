@@ -48,6 +48,15 @@ Crawler::~Crawler()
 void Crawler::receive_http_request(http_request *r)
 {
   io_service.reset();
+  logger.info("Queue size: " + std::to_string(request_queue.size()));
+  
+  if(r->get_timed_out())
+  {
+    logger.debug("Deleting pointer after timeout");
+    delete (r);
+    request_queue.pop_front();
+    prepare_next_request(RequestType::HEAD);
+  }
   
   auto org = request_queue.front();
   std::string org_domain = std::get<0>(org);
@@ -61,15 +70,14 @@ void Crawler::receive_http_request(http_request *r)
     r->set_path(org_path);
     if(org_path == "/robots.txt")
     {
-        process_robots(org_domain, org_path, org_proto,
-          r->get_data());
-        delete(r);
-        logger.info("Deleting pointer after robots rediret");
-        prepare_next_request(RequestType::HEAD);
+      process_robots(org_domain, org_path, org_proto,
+        r->get_data());
+      delete(r);
+      logger.info("Deleting pointer after robots rediret");
+      prepare_next_request(RequestType::HEAD);
     }
   }
   
-  logger.info("Queue size: " + std::to_string(request_queue.size()));
   std::size_t found;
   if( (found = r->get_path().find("/robots.txt") ) == 0)
   {
@@ -128,7 +136,6 @@ void Crawler::prepare_next_request(RequestType type)
       exit(1);
     }
     
-    
     if(db.should_process_robots(domain, protocol))
     {
       request->set_path("/robots.txt");
@@ -178,7 +185,7 @@ bool Crawler::check_if_header_text_html(std::vector<std::string> headers)
       return true;
     }
   }
-  logger.warn("!!!!!!!!!!!!!!!!!!!!  Probably Not HTML  !!!!!!!!!!!!!!!!!!!!!!!!!");
+  logger.info("Probably is NOT HTML");
   return false;
 }
 
@@ -206,7 +213,8 @@ void Crawler::process_robots(
       
     if( (found = line.find("user-agent: ")) != std::string::npos)
     {
-      if( (found = line.find("user-agent: *")) != std::string::npos)
+      if( (found = line.find("user-agent: *")) != std::string::npos ||
+           (found = line.find("user-agent: joyfulreaper") != std::string::npos) )
       {
         foundUserAgent = true;
       } else {
@@ -240,12 +248,12 @@ void Crawler::handle_stop()
   exit(0);
 }
 
-bool Crawler::check_if_html(http_request &request)
+bool Crawler::check_if_html(std::string data)
 {
   // This method currently isn't used anywhere
   
   bool is_html = false;
-  GumboOutput *output = gumbo_parse(request.get_data().c_str());
+  GumboOutput *output = gumbo_parse(data.c_str());
   GumboNode *node = output->root;
   
   if(node->v.element.tag == GUMBO_TAG_HTML)

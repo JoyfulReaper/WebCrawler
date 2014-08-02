@@ -60,10 +60,10 @@ public:
   
   /**
    * Make the request, download contents, check if it has an <html> tag
-   * @param request The resource to check
+   * @param data The resource to check
    * @return true if html, false otherwise
    */
-  bool check_if_html(http_request &request);
+  bool check_if_html(std::string data);
   
   
   /**
@@ -94,8 +94,10 @@ private:
   
   /**
    * Process a sites robots.txt
-   * @param domain The domain
+   * @param server The domain
+   * @param path
    * @param protocol http or https
+   * @param data
    */
   void process_robots(
     std::string server,

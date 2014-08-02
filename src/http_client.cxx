@@ -45,6 +45,7 @@ void http_client::stop(http_request *request, std::string from)
 {
   logger.info("Stop: " + from);
   stopped = true;
+  
   if(request->get_protocol() == "https")
     ssl_sock.lowest_layer().close();
   else
@@ -57,7 +58,6 @@ void http_client::stop(http_request *request, std::string from)
 
 void http_client::check_deadline(http_request *request)
 {
-  //logger.trace("Timeout: " + request->get_server() + request->get_path());
   if(stopped)
     return;
     
@@ -68,8 +68,13 @@ void http_client::check_deadline(http_request *request)
     else
       socket.close();
   
+    logger.warn("Timedout: " + request->get_protocol() + "://" + 
+      request->get_server() + request->get_path());
+      
     request->set_timed_out(true);
-    stop(request, "Timeout");
+    deadline.cancel();
+    request->set_completed(true);
+    request->call_request_reciver(request);
   }
 }
 
@@ -77,12 +82,13 @@ void http_client::make_request(
   http_request *request)
 {
   stopped = false;
-  http_client::requested_content = false;
+  requested_content = false;
   deadline.expires_from_now(posix_time::seconds(45));
   deadline.async_wait( std::bind( &http_client::check_deadline, this, request) );
   
   logger.info( "Requesting: " + request->get_protocol() + "://" + 
-    request->get_server() + request->get_path());
+    request->get_server() + request->get_path() + " port: " + 
+      std::to_string(request->get_port()));
     
   std::string domain = request->get_server();
   if(domain[0] == '/' && domain[1] == '/')
@@ -98,7 +104,7 @@ void http_client::make_request(
     std::string proto = domain.substr(0, found + 3);
     if(proto == "https://")
     {
-      logger.trace("Set protocol to https");
+      logger.debug("Set protocol to https");
       request->set_protocol("https");
     }
     domain = domain.substr(found + 3);
@@ -119,13 +125,13 @@ void http_client::make_request(
   if(request->get_request().size() > 0) // Request provided
   {
     request_stream << request->get_request();
-    request_stream << "User-Agent: IllThinkOfOneLater\r\n";
+    request_stream << "User-Agent: JoyfulReaper\r\n";
   }
   else if (request->get_request_type() == RequestType::GET) // Get request
   {
     logger.debug("GET REQUEST");
     request_stream << "GET " << request->get_path() << " HTTP/1.1\r\n";
-    request_stream << "User-Agent: LessShittyC++Bot\r\n";
+    request_stream << "User-Agent: JoyfulReaper\r\n";
     request_stream << "Host: " << request->get_server() << "\r\n";
     request_stream << "Accept: */*\r\n";
     request_stream << "Connection: close\r\n\r\n";
@@ -133,7 +139,7 @@ void http_client::make_request(
   {
     logger.debug("HEAD REQUEST");
     request_stream << "HEAD " << request->get_path() << " HTTP/1.1\r\n";
-    request_stream << "User-Agent: LessShittyC++Bot\r\n";
+    request_stream << "User-Agent: JoyfulReaper\r\n";
     request_stream << "Host: " << request->get_server() << "\r\n";
     request_stream << "Accept: */*\r\n";
     request_stream << "Connection: close\r\n\r\n";
@@ -221,7 +227,7 @@ void http_client::handle_handshake(
         asio::placeholders::error, request ) ) );
   } else {
     logger.warn("Handshake: " + err.message());
-    //request->add_error ("Error: " + err.message());
+    request->add_error ("Error: " + err.message());
     stop(request, "handle_handshake");
   }
 }
@@ -364,7 +370,7 @@ void http_client::handle_read_headers(
               if(redirect_count >= 5)
               {
                 logger.warn("Breaking redirect loop");
-                continue;
+                break;
               } else {
                 resource = boost::algorithm::replace_all_copy(resource, "\r", "");
                 resource = boost::algorithm::replace_all_copy(resource, "\n", "");
