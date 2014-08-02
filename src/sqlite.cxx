@@ -250,7 +250,6 @@ v_links sqlite::get_links(std::size_t num)
   sqlite3_stmt *statement;
   
   std::string sql = "SELECT domain,path,protocol FROM Links WHERE visited = '0'" \
-    " AND domain IS NOT 'www.reddit.com'" \
     " LIMIT " + std::to_string(num) + ";";
     
   int rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
