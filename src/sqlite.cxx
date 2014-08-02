@@ -60,6 +60,7 @@ sqlite::~sqlite()
 
 void sqlite::close_db()
 {
+  logger.debug("Closing database");
   int rc = sqlite3_close_v2(db);
   if(rc != SQLITE_OK)
     logger.error("Unable to close DB");

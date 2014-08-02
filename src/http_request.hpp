@@ -219,6 +219,10 @@ public:
   bool should_blacklist() { return this->blacklist;  }
 
   std::string get_blacklist_reason() { return blacklist_reason; }
+  
+  void set_timed_out(bool timedOut) { this->timed_out = timedOut; }
+  
+  bool get_timed_out() {return this->timed_out; }
 
 private:
   std::string server = "NULL";
@@ -237,6 +241,7 @@ private:
   unsigned int status_code = 0;
   bool requestCompleted = false;
   bool blacklist = false;
+  bool timed_out = false;
   request_reciver *reciver;
   Logger logger;
   

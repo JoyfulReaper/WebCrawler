@@ -20,6 +20,7 @@
 #include "http_request.hpp"
 #include <boost/bind.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/algorithm/string/replace.hpp>
 #include <sstream>
 
 http_client::http_client(asio::io_service &io_service) 
@@ -67,6 +68,7 @@ void http_client::check_deadline(http_request *request)
     else
       socket.close();
   
+    request->set_timed_out(true);
     stop(request, "Timeout");
   }
 }
@@ -110,6 +112,8 @@ void http_client::make_request(
   {
     logger.debug("Fixing https port...");
     request->set_port(443);
+    logger.debug("Fixed: " + request->get_protocol() + "://" + request->get_server() +
+      request->get_path() + " port: " + std::to_string(request->get_port()));
   }
   
   std::ostream request_stream(&request->get_request_buf());
@@ -123,7 +127,7 @@ void http_client::make_request(
   {
     logger.debug("GET REQUEST");
     request_stream << "GET " << request->get_path() << " HTTP/1.1\r\n";
-    request_stream << "User-Agent: ShittyC++Bot\r\n";
+    request_stream << "User-Agent: LessShittyC++Bot\r\n";
     request_stream << "Host: " << request->get_server() << "\r\n";
     request_stream << "Accept: */*\r\n";
     request_stream << "Connection: close\r\n\r\n";
@@ -131,7 +135,7 @@ void http_client::make_request(
   {
     logger.debug("HEAD REQUEST");
     request_stream << "HEAD " << request->get_path() << " HTTP/1.1\r\n";
-    request_stream << "User-Agent: ShittyC++Bot\r\n";
+    request_stream << "User-Agent: LessShittyC++Bot\r\n";
     request_stream << "Host: " << request->get_server() << "\r\n";
     request_stream << "Accept: */*\r\n";
     request_stream << "Connection: close\r\n\r\n";
@@ -147,12 +151,12 @@ void http_client::handle_resolve(
   tcp::resolver::iterator endpoint_it, 
   http_request *request)
 {
-  logger.trace("handle_resolve: " + request->get_server());
   if(stopped)
     return;
     
   if(!err)
   {
+    logger.trace("handle_resolve: " + request->get_server());
     if(request->get_protocol() == "https")
     {
       logger.trace("https resolve");
@@ -177,12 +181,12 @@ void http_client::handle_connect(
   const system::error_code &err, 
   http_request *request)
 {
-  logger.trace("handle_connect: " + request->get_server());
   if(stopped)
     return;
     
   if(!err)
   {
+    logger.trace("handle_connect: " + request->get_server());
     if(request->get_protocol() == "https")
     {
       logger.trace("https connect");
@@ -208,12 +212,12 @@ void http_client::handle_handshake(
   if(stopped)
     return;
     
-  logger.info(request->get_protocol() + "://" + request->get_server() + request->get_path() + ":" +
-    std::to_string(request->get_port()));
-    
   if(!err)
   {
     logger.trace("https handshake: " + request->get_server());
+    logger.info(request->get_protocol() + "://" + request->get_server() + request->get_path() + ":" +
+    std::to_string(request->get_port()));
+    
     asio::async_write( ssl_sock, request->get_request_buf(), 
       strand.wrap( bind ( &http_client::handle_write_request, this, 
         asio::placeholders::error, request ) ) );
@@ -228,12 +232,12 @@ void http_client::handle_write_request(
   const system::error_code &err, 
   http_request *request)
 {
-  logger.trace("handle_write_request: " + request->get_server());
   if(stopped)
     return;
     
   if(!err)
   {
+    logger.trace("handle_write_request: " + request->get_server());
     if(request->get_protocol() == "https")
     {
       logger.trace("https write_request: " + request->get_server());
@@ -256,12 +260,12 @@ void http_client::handle_read_status_line(
   const system::error_code &err, 
   http_request *request)
 {
-  logger.trace("handle_read_status_line: " + request->get_server());
   if(stopped)
     return;  
 
   if(!err)
   {
+    logger.trace("handle_read_status_line: " + request->get_server());
     std::istream response_stream(&request->get_response_buf());
     std::string http_version;
     std::string status_message;
@@ -306,12 +310,12 @@ void http_client::handle_read_headers(
   const system::error_code &err, 
   http_request *request)
 {
-  logger.trace("handle_read_headers: " + request->get_server());
   if(stopped)
     return;
-    
+
   if(!err)
   {
+    logger.trace("handle_read_headers: " + request->get_server());
     std::istream response_stream(&request->get_response_buf());
     std::string header;
     
@@ -364,6 +368,8 @@ void http_client::handle_read_headers(
                 logger.warn("Breaking redirect loop");
                 continue;
               } else {
+                resource = boost::algorithm::replace_all_copy(resource, "\r", "");
+                resource = boost::algorithm::replace_all_copy(resource, "\n", "");
                 logger.warn("301/302 Redirecting: (" + std::to_string(redirect_count) + ")");
                 request->reset_buffers();
                 request->reset_errors();
