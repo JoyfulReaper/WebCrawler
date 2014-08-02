@@ -44,7 +44,7 @@ public:
   
   virtual ~http_request();
 
-  void call_request_reciver(std::unique_ptr<http_request> r);
+  void call_request_reciver(http_request *r);
 
   /**
    * @return port associated with this http_request

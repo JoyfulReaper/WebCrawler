@@ -79,10 +79,9 @@ void sqlite::add_links(std::vector<std::string> links)
   
   std::string sql;
   int rc;
-  char *err = 0;
   
   sql = "BEGIN";
-  rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
+  rc = sqlite3_exec(db, sql.c_str(), 0, 0, 0);
   if(rc != SQLITE_OK)
     logger.error("BEGIN failed");
   
@@ -120,7 +119,7 @@ void sqlite::add_links(std::vector<std::string> links)
       
     logger.trace("Adding link to DB: " + protocol + "://" + domain + path);
 
-    rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
+    rc = sqlite3_exec(db, sql.c_str(), 0, 0, 0);
     
     if(rc != SQLITE_OK)
     {
@@ -137,11 +136,10 @@ void sqlite::add_links(std::vector<std::string> links)
   }
   
   sql = "COMMIT";
-  rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
+  rc = sqlite3_exec(db, sql.c_str(), 0, 0, 0);
   if(rc != SQLITE_OK)
     logger.error("COMMIT failed");
-    
-  sqlite3_free(err);
+
   return;
 }
 
@@ -377,9 +375,7 @@ void sqlite::remove_link(std::string domain, std::string path, std::string proto
     
   logger.warn("REMOVING LINK: " + protocol + "://" + domain + path + " !!!!!!!!!!!!!!!!!!!!!!!!!!!");
   
-  char *err = 0;
-  int rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
-  
+  int rc = sqlite3_exec(db, sql.c_str(), 0, 0, 0);
   if(rc != SQLITE_OK)
   {
     std::string errmsg = "remove_link: ";
@@ -403,8 +399,7 @@ void sqlite::blacklist(
 
   logger.info("Blacklisting: " + protocol + "://" + domain + path + " ( " + reason + ")");
 
-  char *err = 0;
-  int rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
+  int rc = sqlite3_exec(db, sql.c_str(), 0, 0, 0);
   if(rc != SQLITE_OK)
   {
     std::string errmsg = "sql_blacklist_single: ";
@@ -412,7 +407,6 @@ void sqlite::blacklist(
     errmsg.append(" " + sql);
     throw(CrawlerException(errmsg));
   }
-  sqlite3_free(err);
 }
 
 void sqlite::blacklist(v_links blacklist, std::string reason)
@@ -440,8 +434,7 @@ void sqlite::blacklist(v_links blacklist, std::string reason)
       "VALUES ('" + domain + "', '" + path + "', '" + protocol + "', '" \
       + reason + "');";
   
-    char *err = 0;
-    rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
+    rc = sqlite3_exec(db, sql.c_str(), 0, 0, 0);
     
     logger.info("Blacklisted: " + domain + path + " (" + protocol + ")");
   
@@ -471,8 +464,7 @@ void sqlite::set_robot_processed(std::string domain, std::string protocol)
   std::string sql = "INSERT OR REPLACE INTO RobotRules (domain,protocol,lastUpdated) " \
     "VALUES ('" + domain + "', '" + protocol + "', '" + std::to_string(seconds) + "');";
   
-  char *err = 0;
-  int rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
+  int rc = sqlite3_exec(db, sql.c_str(), 0, 0, 0);
   
   logger.debug("Adding " + domain + " to RobotRules");
   
@@ -483,7 +475,6 @@ void sqlite::set_robot_processed(std::string domain, std::string protocol)
     errmsg.append(" " + sql);
     throw(CrawlerException(errmsg));
    }
-  sqlite3_free(err);
   return;
 }
 

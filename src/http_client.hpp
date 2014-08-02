@@ -48,7 +48,7 @@ public:
   
   virtual ~http_client();
   
-  void make_request(std::unique_ptr<http_request> request);
+  void make_request(http_request *request);
 
 private:
   asio::io_service &io_service;

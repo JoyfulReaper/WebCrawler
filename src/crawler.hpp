@@ -44,7 +44,7 @@ public:
 
   virtual ~Crawler();
 
-  void receive_http_request(std::unique_ptr<http_request> r);
+  void receive_http_request(http_request *request);
 
   /**
    * Start the crawl
@@ -84,9 +84,9 @@ private:
   sqlite db;
   Logger logger;
   
-  void do_request(std::unique_ptr<http_request> request);
+  void do_request(http_request *request);
   
-  void prepare_next_request();
+  void prepare_next_request(int t);
   
   /**
    * Close the database and exit

@@ -31,7 +31,7 @@ class request_reciver
 public:
   virtual ~request_reciver() {}
   
-  virtual void receive_http_request(std::unique_ptr<http_request> r) = 0;
+  virtual void receive_http_request(http_request *request) = 0;
 private:
 };
 

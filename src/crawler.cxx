@@ -45,12 +45,20 @@ Crawler::~Crawler()
 {
 }
  
-void Crawler::receive_http_request(std::unique_ptr<http_request> r)
+void Crawler::receive_http_request(http_request *r)
 {
   io_service.reset();
   logger.info("Queue size: " + std::to_string(request_queue.size()));
-  
   std::size_t found;
+  if( (found = r->get_path().find("/robots.txt") ) == 0)
+  {
+    process_robots(r->get_server(), r->get_path(), r->get_protocol(), 
+      r->get_data());
+    logger.info("Deleting pointer bot");
+    delete(r);
+    prepare_next_request(0);
+  }
+  
   auto org = request_queue.front();
   std::string org_domain = std::get<0>(org);
   std::string org_path = std::get<1>(org);
@@ -61,20 +69,13 @@ void Crawler::receive_http_request(std::unique_ptr<http_request> r)
     r->set_server(org_domain);
   if(r->get_path() != org_path)
     r->set_path(org_path);
-    
-  if( (found = r->get_path().find("/robots.txt")) == 0)
-  {
-    process_robots(r->get_server(), r->get_path(), r->get_protocol(), 
-      r->get_data());
-    prepare_next_request();
-  }
+
   
   if(r->get_request_type() == RequestType::HEAD)
   {
     if(check_if_header_text_html(r->get_headers()))
     {
-      r->set_request_type(RequestType::GET);
-      do_request(std::move(r));
+      prepare_next_request(1);
     } else {
       r->should_blacklist(true, "Probably not HTML");
     }
@@ -90,12 +91,13 @@ void Crawler::receive_http_request(std::unique_ptr<http_request> r)
   db.set_visited(r->get_server(), r->get_path(), r->get_protocol(),
     r->get_status_code());
   
-  r.reset();
   request_queue.pop_front();
-  prepare_next_request();
+  logger.info("Deleting pointer");
+  delete(r);
+  prepare_next_request(0);
 }
 
-void Crawler::prepare_next_request()
+void Crawler::prepare_next_request(int t)
 {
   if(!request_queue.empty())
   {
@@ -103,19 +105,23 @@ void Crawler::prepare_next_request()
     std::string domain = std::get<0>(t_request);
     std::string path = std::get<1>(t_request);
     std::string protocol = std::get<2>(t_request);
-    std::unique_ptr<http_request> request(new http_request
-      (*this, domain, path, protocol) );
-    request->set_request_type(RequestType::HEAD);
+    
+    http_request *request = new http_request(*this, domain, path, 
+      protocol);
+    if(!t)
+      request->set_request_type(RequestType::HEAD);
+    else
+      request->set_request_type(RequestType::GET);
     
     
     if(db.should_process_robots(domain, protocol))
     {
       request->set_path("/robots.txt");
       request->set_request_type(RequestType::GET);
-      do_request(std::move(request));
+      do_request(request);
     }
     
-    do_request(std::move(request));
+    do_request(request);
   } else {
     db.close_db();
     std::cout << "Empty queue!\n";
@@ -123,9 +129,9 @@ void Crawler::prepare_next_request()
   }
 }
 
-void Crawler::do_request(std::unique_ptr<http_request> request)
+void Crawler::do_request(http_request *request)
 {
-  client.make_request(std::move(request));
+  client.make_request(request);
   io_service.run();
 }
 
@@ -136,11 +142,11 @@ void Crawler::start()
 
   http_client client(io_service);
 
-  auto links = db.get_links(5);
+  auto links = db.get_links(1000);
   for(auto &link : links)
     request_queue.push_back(link);
 
-  prepare_next_request();
+  prepare_next_request(0);
 }
 
 

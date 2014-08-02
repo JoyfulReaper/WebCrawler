@@ -52,7 +52,7 @@ void http_client::stop(http_request *request, std::string from)
     
   deadline.cancel();
   request->set_completed(true);
-  request->call_request_reciver(std::unique_ptr<http_request>(request));
+  request->call_request_reciver(request);
 }
 
 void http_client::check_deadline(http_request *request)
@@ -74,10 +74,8 @@ void http_client::check_deadline(http_request *request)
 }
 
 void http_client::make_request(
-  std::unique_ptr<http_request> r)
+  http_request *request)
 {
-  http_request *request = r.release();
-  
   stopped = false;
   http_client::requested_content = false;
   deadline.expires_from_now(posix_time::seconds(45));
@@ -376,7 +374,7 @@ void http_client::handle_read_headers(
                 request->set_server(server);
                 request->set_path(resource);
                 redirect_count++;
-                make_request(std::unique_ptr<http_request>(request));
+                make_request(request);
               }
             }
           }
