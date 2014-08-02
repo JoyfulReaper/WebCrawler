@@ -56,7 +56,8 @@ public:
    * @param request The resource to check
    * @return true if html/text or false if the header wasn't sent
    */
-  bool check_if_header_text_html(std::unique_ptr<http_request> &request);
+  bool check_if_header_text_html(
+    std::vector<std::string> headers);
   
   /**
    * Make the request, download contents, check if it has an <html> tag
@@ -97,7 +98,11 @@ private:
    * @param domain The domain
    * @param protocol http or https
    */
-  void process_robots(std::unique_ptr<http_request> &request);
+  void process_robots(
+    std::string server,
+    std::string path,
+    std::string protocol,
+    std::string data);
 };
 
 #endif

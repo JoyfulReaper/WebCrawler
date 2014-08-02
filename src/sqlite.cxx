@@ -55,7 +55,10 @@ sqlite::sqlite(std::string databaseFile)
 
 sqlite::~sqlite()
 {
-  close_db();
+  logger.debug("~Closing database");
+  int rc = sqlite3_close_v2(db);
+  if(rc != SQLITE_OK)
+    logger.error("Unable to close DB");
 }
 
 void sqlite::close_db()
@@ -68,6 +71,7 @@ void sqlite::close_db()
 
 void sqlite::add_links(std::vector<std::string> links)
 {
+  logger.debug("Adding links to DB");
   std::string protocol;
   std::string domain;
   std::string path;
@@ -136,7 +140,8 @@ void sqlite::add_links(std::vector<std::string> links)
   rc = sqlite3_exec(db, sql.c_str(), 0, 0, &err);
   if(rc != SQLITE_OK)
     logger.error("COMMIT failed");
-  
+    
+  sqlite3_free(err);
   return;
 }
 
@@ -407,6 +412,7 @@ void sqlite::blacklist(
     errmsg.append(" " + sql);
     throw(CrawlerException(errmsg));
   }
+  sqlite3_free(err);
 }
 
 void sqlite::blacklist(v_links blacklist, std::string reason)
@@ -477,7 +483,7 @@ void sqlite::set_robot_processed(std::string domain, std::string protocol)
     errmsg.append(" " + sql);
     throw(CrawlerException(errmsg));
    }
-   
+  sqlite3_free(err);
   return;
 }
 

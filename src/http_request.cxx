@@ -39,6 +39,8 @@ http_request::http_request(
     logger("http_request")
 {
   logger.setIgnoreLevel(Level::TRACE);
+  if(this->protocol == "https" && this->port == 80)
+    set_port(443);
 }
 
 http_request::~http_request() {}
@@ -110,7 +112,7 @@ void http_request::search_for_links(GumboNode *node, std::vector<std::string> &l
 
     if( (found = link.find("javascript:void(0)")) != std::string::npos)
     {
-      logger.debug("Dropping link: "+ link);
+      logger.trace("Dropping link: "+ link);
       return;
     }
 

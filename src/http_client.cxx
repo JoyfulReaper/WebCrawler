@@ -223,7 +223,7 @@ void http_client::handle_handshake(
         asio::placeholders::error, request ) ) );
   } else {
     logger.warn("Handshake: " + err.message());
-    request->add_error ("Error: " + err.message());
+    //request->add_error ("Error: " + err.message());
     stop(request, "handle_handshake");
   }
 }
