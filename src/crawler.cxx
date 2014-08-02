@@ -51,7 +51,9 @@ void Crawler::receive_http_request(std::unique_ptr<http_request> r)
   
   logger.info("Queue size: " + std::to_string(request_queue.size()));
   
-  if(r->get_path() == "/robots.txt")
+  std::size_t found;
+  if( ( found = r->get_path().find("/robots.txt") ) 
+    != std::string::npos && found == 0)
   {
     process_robots(*r);
     prepare_next_request();
@@ -195,6 +197,7 @@ void Crawler::process_robots(http_request &request)
 void Crawler::seed(std::string domain, std::string path)
 {
   db.add_link(domain + path);
+  exit(0);
 }
 
 void Crawler::handle_stop()

@@ -75,6 +75,7 @@ void http_client::make_request(
   std::unique_ptr<http_request> r)
 {
   http_request *request = r.release();
+  
   stopped = false;
   http_client::requested_content = false;
   deadline.expires_from_now(posix_time::seconds(45));
@@ -105,6 +106,12 @@ void http_client::make_request(
     logger.trace("Converted to: " + domain);
   }
   
+  if(request->get_protocol() == "https" && request->get_port() == 80)
+  {
+    logger.debug("Fixing https port...");
+    request->set_port(443);
+  }
+  
   std::ostream request_stream(&request->get_request_buf());
   
   if(request->get_request().size() > 0) // Request provided
@@ -115,7 +122,7 @@ void http_client::make_request(
   else if (request->get_request_type() == RequestType::GET) // Get request
   {
     logger.debug("GET REQUEST");
-    request_stream << "GET " << request->get_path() << " HTTP/1.0\r\n";
+    request_stream << "GET " << request->get_path() << " HTTP/1.1\r\n";
     request_stream << "User-Agent: ShittyC++Bot\r\n";
     request_stream << "Host: " << request->get_server() << "\r\n";
     request_stream << "Accept: */*\r\n";
@@ -123,7 +130,7 @@ void http_client::make_request(
   } else if (request->get_request_type() == RequestType::HEAD) // Head request
   {
     logger.debug("HEAD REQUEST");
-    request_stream << "HEAD " << request->get_path() << " HTTP/1.0\r\n";
+    request_stream << "HEAD " << request->get_path() << " HTTP/1.1\r\n";
     request_stream << "User-Agent: ShittyC++Bot\r\n";
     request_stream << "Host: " << request->get_server() << "\r\n";
     request_stream << "Accept: */*\r\n";
@@ -200,6 +207,9 @@ void http_client::handle_handshake(
 {
   if(stopped)
     return;
+    
+  logger.info(request->get_protocol() + "://" + request->get_server() + request->get_path() + ":" +
+    std::to_string(request->get_port()));
     
   if(!err)
   {
