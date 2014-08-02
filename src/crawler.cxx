@@ -62,27 +62,25 @@ void Crawler::receive_http_request(http_request *r)
   std::string org_domain = std::get<0>(org);
   std::string org_path = std::get<1>(org);
   std::string org_proto = std::get<2>(org);
+  std::size_t found;
   
   // We were redirected
   if(r->get_server() != org_domain || r->get_path() != org_path)
   {
-    r->set_server(org_domain);
-    r->set_path(org_path);
-    if(org_path == "/robots.txt")
+    if( (found = r->get_path().find("/robots.txt")) == 0)
     {
-      process_robots(org_domain, org_path, org_proto,
-        r->get_data());
+      process_robots(org_domain, org_proto, r->get_data());
       delete(r);
       logger.info("Deleting pointer after robots rediret");
       prepare_next_request(RequestType::HEAD);
     }
+    r->set_server(org_domain);
+    r->set_path(org_path);
   }
   
-  std::size_t found;
   if( (found = r->get_path().find("/robots.txt") ) == 0)
   {
-    process_robots(r->get_server(), r->get_path(), r->get_protocol(), 
-      r->get_data());
+    process_robots(r->get_server(), r->get_protocol(), r->get_data());
     logger.info("Deleting pointer after robots");
     delete(r);
     prepare_next_request(RequestType::HEAD);
@@ -191,13 +189,14 @@ bool Crawler::check_if_header_text_html(std::vector<std::string> headers)
 
 void Crawler::process_robots(
   std::string server,
-  std::string path,
   std::string protocol,
   std::string data)
 {
   // Follow SOME robots.txt rules...
   // Not fully compliant
-
+  logger.debug("Proccessing robots.txt for: " + protocol + "://" + 
+    server);
+  
   v_links blacklist;
   std::string line;
   bool foundUserAgent = false;

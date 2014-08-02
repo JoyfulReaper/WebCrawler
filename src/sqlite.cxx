@@ -117,7 +117,7 @@ void sqlite::add_links(std::vector<std::string> links)
     sql = "INSERT INTO Links (domain,path,protocol) " \
       "VALUES ('" + domain + "', '" + path + "', '" + protocol + "');";
       
-    logger.trace("Adding link to DB: " + protocol + "://" + domain + path);
+    //logger.debug("Adding link to DB: " + protocol + "://" + domain + path);
 
     rc = sqlite3_exec(db, sql.c_str(), 0, 0, 0);
     
@@ -132,6 +132,8 @@ void sqlite::add_links(std::vector<std::string> links)
       } else {
         logger.trace("Already in DB: " + domain + path);
       }
+    } else {
+      logger.trace("Added link to DB: " + protocol + "://" + domain + path);
     }
   }
   
@@ -331,7 +333,6 @@ bool sqlite::check_blacklist(
         blacklisted = true; // Exact match
       }
       
-      //std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ "<< bl_path << "\n";
       if(bl_domain == domain && bl_path == "/" && bl_proto == proto)
       {
         logger.info("Hit whole site blackliste");

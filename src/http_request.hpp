@@ -44,6 +44,9 @@ public:
   
   virtual ~http_request();
 
+  /**
+   * Send the completed http_request to the caller
+   */
   void call_request_reciver(http_request *r);
 
   /**
@@ -210,18 +213,34 @@ public:
    */
   std::string get_protocol() const { return this->protocol; }
   
+  /**
+   * @param blacklist true if the URL should be blacklisted, false if not
+   * @param reason the reason for the blacklisting
+   */
   void should_blacklist(bool blacklist, std::string reason = "default") 
   { 
     this->blacklist = blacklist;
     this->blacklist_reason = reason;
   }
   
+  /**
+   * @return true if this URL should be blacklisted, false if not
+   */
   bool should_blacklist() { return this->blacklist;  }
 
+  /**
+   * @return the reason why this URL should be blacklisted
+   */
   std::string get_blacklist_reason() { return blacklist_reason; }
   
+  /**
+   * @param timedOut true if the request timed out, false if it didn't
+   */
   void set_timed_out(bool timedOut) { this->timed_out = timedOut; }
   
+  /**
+   * @return true if the request timedout, false if it didn't
+   */
   bool get_timed_out() {return this->timed_out; }
 
 private:

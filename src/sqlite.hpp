@@ -38,10 +38,19 @@ public:
 
   virtual ~sqlite();
   
+  /**
+   * Close the database
+   */
   void close_db();
   
+  /**
+   * @param links A vector of links to add to the database
+   */
   void add_links(std::vector<std::string> links);
   
+  /**
+   * @param link A single link to add to the database
+   */
   void add_link(std::string link)
   {
     std::vector<std::string> vlink;
@@ -49,6 +58,9 @@ public:
     add_links(vlink);
   }
   
+  /**
+   * @return true if the URL has been visited, false if not
+   */
   bool get_visited(
     std::string domain, 
     std::string path, 

@@ -110,9 +110,9 @@ void http_request::search_for_links(GumboNode *node, std::vector<std::string> &l
       return;
     }
 
-    if( (found = link.find("javascript:void(0)")) != std::string::npos)
+    if( (found = link.find("javascript:")) != std::string::npos)
     {
-      logger.trace("Dropping link: "+ link);
+      logger.debug("Dropping link: "+ link);
       return;
     }
 

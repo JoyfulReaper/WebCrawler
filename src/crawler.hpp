@@ -101,7 +101,6 @@ private:
    */
   void process_robots(
     std::string server,
-    std::string path,
     std::string protocol,
     std::string data);
 };
