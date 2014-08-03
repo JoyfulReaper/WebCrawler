@@ -22,4 +22,23 @@
  */
 
 #include "robot_parser.hpp"
+#include <string>
+#include <boost/regex.hpp>
+#include <boost/algorithm/string/replace.hpp>
 
+using namespace boost;
+
+bool robot_parser::path_is_allowed(std::string i_pattern, std::string path)
+{
+  std::string pattern = algorithm::replace_all_copy(i_pattern, "*", ".*");
+  pattern = algorithm::replace_all_copy(pattern, "?", "\\?");
+  pattern = algorithm::replace_all_copy(pattern, ".", "\\.");
+  
+  regex exp(pattern);
+  cmatch what;
+  
+  if(regex_match(path.c_str(), what, exp))
+    return false; // Path not allowed
+
+  return true; // Path is allowed 
+}

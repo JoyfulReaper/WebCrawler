@@ -22,15 +22,13 @@
  */
 
 #include "crawler.hpp"
-
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
-#include "http_client.hpp"
-#include "http_request.hpp"
 
+#include "robot_parser.hpp"
 
 int main(int argc, char **argv)
-{
+{  
   boost::asio::io_service io;
   Crawler crawler(io);
   

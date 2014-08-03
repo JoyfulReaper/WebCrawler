@@ -23,12 +23,10 @@
 
 #include "sqlite.hpp"
 #include "crawlerException.hpp"
+#include "robot_parser.hpp"
 #include <chrono>
-#include <unistd.h>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
-#include <boost/algorithm/string/split.hpp>
-#include <boost/algorithm/string/classification.hpp>
 
 sqlite::sqlite(std::string databaseFile)
   : databaseFile(databaseFile),
@@ -306,13 +304,10 @@ bool sqlite::check_blacklist(
   std::string path, 
   std::string proto)
 {
-  std::vector<std::string> path_split;
-  std::vector<std::string> bl_split;
   bool blacklisted = false;
-  std::size_t found;
   sqlite3_stmt *statement;
-  int rc;  
-  boost::split(path_split, path, boost::is_any_of("/"));
+  int rc;
+  robot_parser rp;
 
   std::string sql = "SELECT domain,path,protocol FROM Blacklist WHERE " \
     "domain = '" + domain + "' AND protocol = '" + proto + "';";
@@ -331,58 +326,22 @@ bool sqlite::check_blacklist(
   {
     if(rc == SQLITE_ROW)
     {
-      std::string bl_domain = reinterpret_cast<const char*>(sqlite3_column_text(statement, 0));
-      std::string bl_path = reinterpret_cast<const char*>(sqlite3_column_text(statement, 1));
-      std::string bl_proto = reinterpret_cast<const char*>(sqlite3_column_text(statement, 2));
-      
-      if(bl_domain == domain && bl_path == path && bl_proto == proto)
-      {
-        logger.info("Hit exact match blacklist");
-        blacklisted = true; // Exact match
-      }
-      
-      if(bl_domain == domain && bl_path == "/" && bl_proto == proto)
-      {
-        logger.info("Hit whole site blackliste");
-        blacklisted = true; // Whole site
-      }
-        
-      if(bl_domain == domain && bl_proto == proto)
-      {
-        if( ( found = path.find(bl_path) ) != std::string::npos)
-        {
-          if( (found == 0) && (path.back() == '/') )
-          {
-            blacklisted = true; // Directory
-            logger.info("Hit directory blacklist: " + proto + "://" + domain + path);
-          }
-        }
-      }
-      
-      boost::split(bl_split, bl_path, boost::is_any_of("/"));
-      for(auto it = bl_split.begin(); it != bl_split.end(); ++it)
-        if(*it == "")
-        {
-          bl_split.erase(it);
-          it = bl_split.begin();
-        }
-      for(auto it = path_split.begin(); it != path_split.end(); ++it)
-        if(*it == "")
-        {
-          it = path_split.erase(it);
-          it = path_split.begin();
-        }
-      bool matches = false;
-      
-
-
-      if(matches)
-      {
-        logger.info("Match: " + bl_path + " : " + proto + "://" + domain + path);
-        blacklisted = true;
-      }
+      std::string bl_domain = reinterpret_cast<const char*>
+        (sqlite3_column_text(statement, 0));
+      std::string bl_path = reinterpret_cast<const char*>
+        (sqlite3_column_text(statement, 1));
+      std::string bl_proto = reinterpret_cast<const char*>
+        (sqlite3_column_text(statement, 2));
       
       rc = sqlite3_step(statement);
+      
+      if(!rp.path_is_allowed(bl_path, path))
+        blacklisted = true;
+        
+    if(blacklisted)
+      logger.debug("Hit blacklist: " + proto +"://" + domain + path
+        + "pattren: " + bl_path);
+      
     } else {
       sqlite3_finalize(statement);
       std::string errmsg = "check_bl: ";
@@ -392,10 +351,6 @@ bool sqlite::check_blacklist(
   }
   
   sqlite3_finalize(statement);
-  
-  if(blacklisted)
-    logger.debug("Hit blacklist: " + proto +"://" + domain + path);
-  
   return blacklisted;
 }
 
@@ -404,7 +359,7 @@ void sqlite::remove_link(std::string domain, std::string path, std::string proto
   std::string sql = "DELETE FROM Links WHERE domain = '" + domain + "' AND path = '" \
     + path + "' AND protocol = '" + protocol +"';";
     
-  logger.warn("REMOVING LINK: " + protocol + "://" + domain + path + " !!!!!!!!!!!!!!!!!!!!!!!!!!!");
+  logger.warn("REMOVING LINK: " + protocol + "://" + domain + path + "!");
   
   int rc = sqlite3_exec(db, sql.c_str(), 0, 0, 0);
   if(rc != SQLITE_OK)

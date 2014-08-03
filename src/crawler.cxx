@@ -120,8 +120,11 @@ void Crawler::handle_recived_get(http_request *r)
   if(r->get_data().size() != 0)
     db->add_links(r->get_links());
   
-  db->set_visited(r->get_server(), r->get_path(), r->get_protocol(),
-    r->get_status_code());
+  if(!r->get_timed_out())
+  {
+    db->set_visited(r->get_server(), r->get_path(), r->get_protocol(),
+      r->get_status_code());
+  }
     
   logger.trace("Get: Deleting request, no longer needed");
   delete(r);

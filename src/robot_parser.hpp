@@ -24,10 +24,14 @@
 #ifndef _WC_ROBOT_PARSER_H_
 #define _WC_ROBOT_PARSER_H_
 
+#include <string>
+
 class robot_parser
 {
-private:
 public:
-}
+  bool path_is_allowed(std::string pattern, std::string path);
+  
+private:
+};
 
 #endif
