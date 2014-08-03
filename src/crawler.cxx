@@ -162,7 +162,7 @@ void Crawler::start()
 
   http_client client(io_service);
 
-  auto links = db.get_links(1000);
+  auto links = db.get_links(10);
   for(auto &link : links)
     request_queue.push_back(link);
 

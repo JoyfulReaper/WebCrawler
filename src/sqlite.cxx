@@ -27,6 +27,8 @@
 #include <unistd.h>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
+#include <boost/algorithm/string/split.hpp>
+#include <boost/algorithm/string/classification.hpp>
 
 sqlite::sqlite(std::string databaseFile)
   : databaseFile(databaseFile),
@@ -304,12 +306,21 @@ bool sqlite::check_blacklist(
   std::string path, 
   std::string proto)
 {
+  std::vector<std::string> path_split;
+  std::vector<std::string> bl_split;
   bool blacklisted = false;
+  std::size_t found;
   sqlite3_stmt *statement;
+  int rc;
+  
+  boost::split(path_split, path, boost::is_any_of("/"));
+  //for(auto &s : path_split)
+  //  std::cout << "P: " << s << std::endl;
+  
   std::string sql = "SELECT domain,path,protocol FROM Blacklist WHERE " \
     "domain = '" + domain + "' AND protocol = '" + proto + "';";
+  rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
   
-  int rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
   if(rc != SQLITE_OK)
   {
     sqlite3_finalize(statement);
@@ -341,7 +352,6 @@ bool sqlite::check_blacklist(
         
       if(bl_domain == domain && bl_proto == proto)
       {
-        std::size_t found;
         if( ( found = path.find(bl_path) ) != std::string::npos)
         {
           if( (found == 0) && (path.back() == '/') )
@@ -350,6 +360,43 @@ bool sqlite::check_blacklist(
             logger.info("Hit directory blacklist: " + proto + "://" + domain + path);
           }
         }
+      }
+      
+      boost::split(bl_split, bl_path, boost::is_any_of("/"));
+      //for(auto &s : bl_split)
+      //  std::cout << "B: " << s << std::endl;
+      
+      bool matches = false;
+      for(std::size_t i = 1; i < path_split.size(); i++)
+      {
+        if(i >= bl_split.size())
+          break;
+        
+        if(path_split[i] == bl_split[i] || bl_split[i] == "*")
+          matches = true;
+        else if( (found = bl_split[i].find("*")) != std::string::npos
+          && matches)
+        {
+          bl_split[i] = boost::algorithm::replace_all_copy
+            (bl_split[i], "*", "");
+            
+          std::string temp = bl_split[i].substr(0, found);
+          std::cout << "t: " << temp << std::endl;
+          if( path_split[i].substr(found, path_split[i].length()) == temp)
+          {
+            matches = true;
+          }
+        }
+        else 
+        {
+          matches = false;
+          break;
+        }
+      }
+      if(matches)
+      {
+        logger.info("Match: " + bl_path + " : " + proto + "://" + domain + path);
+        blacklisted = true;
       }
       
       rc = sqlite3_step(statement);
@@ -423,11 +470,9 @@ void sqlite::blacklist(v_links blacklist, std::string reason)
     std::string path = std::get<1>(link);
     std::string protocol = std::get<2>(link);
     
-    std::size_t found;
-    if( (found = path.find("*")) != std::string::npos )
-      continue;
-    if( (found = path.find("?")) != std::string::npos )
-      continue; // We don't add these anyway
+    //std::size_t found;
+    //if( (found = path.find("?")) != std::string::npos )
+    //  continue; // We don't add these anyway
     
     path = boost::algorithm::replace_all_copy(path, "'", "''");
     
