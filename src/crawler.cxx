@@ -24,9 +24,8 @@
 #include "crawler.hpp"
 #include <boost/bind.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
-//#include <boost/signals2/signal.hpp>
-#include <iostream>
 #include <gumbo.h>
+#include <iostream>
 #include <csignal>
 
 Crawler::Crawler(boost::asio::io_service &io_service)
@@ -34,10 +33,11 @@ Crawler::Crawler(boost::asio::io_service &io_service)
     signals(io_service),
     strand(io_service),
     io_service(io_service),
-    db("test.db"),
+    db(new sqlite("test.db")),
     logger("Crawler")
 {
   logger.setIgnoreLevel(Level::NONE);
+  
   signals.add(SIGINT);
   signals.add(SIGTERM);
   #ifdef SIGQUIT
@@ -48,11 +48,9 @@ Crawler::Crawler(boost::asio::io_service &io_service)
  
 Crawler::~Crawler()
 {
+  db->close_db();
+  delete(db);
 }
-
-//boost::signals2::signal<void ()> sig;
-//sig.connect(boost::bind(&Crawler::do_request, this));
-//sig();
  
 void Crawler::receive_http_request(http_request *r)
 {
@@ -101,7 +99,7 @@ void Crawler::handle_recived_head(http_request *r)
     r->set_request_type(RequestType::GET);
     strand.post(bind(&Crawler::do_request, this, r));
   } else {
-    db.blacklist(r->get_server(), r->get_path(), r->get_protocol(),
+    db->blacklist(r->get_server(), r->get_path(), r->get_protocol(),
       "Probably not html");
       
     logger.trace("Deleting pointer becasue not HTML");
@@ -114,13 +112,13 @@ void Crawler::handle_recived_head(http_request *r)
 void Crawler::handle_recived_get(http_request *r)
 {
   if(r->should_blacklist())
-    db.blacklist(r->get_server(), r->get_path(), r->get_protocol(),
+    db->blacklist(r->get_server(), r->get_path(), r->get_protocol(),
       r->get_blacklist_reason());
 
   if(r->get_data().size() != 0)
-    db.add_links(r->get_links());
+    db->add_links(r->get_links());
   
-  db.set_visited(r->get_server(), r->get_path(), r->get_protocol(),
+  db->set_visited(r->get_server(), r->get_path(), r->get_protocol(),
     r->get_status_code());
     
   logger.trace("Get: Deleting request, no longer needed");
@@ -148,7 +146,7 @@ void Crawler::prepare_next_request()
       protocol);
     request->set_request_type(RequestType::HEAD);
     
-    if(db.should_process_robots(domain, protocol))
+    if(db->should_process_robots(domain, protocol))
     {
       request->set_path("/robots.txt");
       request->set_request_type(RequestType::GET);
@@ -159,7 +157,7 @@ void Crawler::prepare_next_request()
     
   } else {
     std::cout << "Queue is empty, quiting\n";
-    db.close_db();
+    db->close_db();
     exit(0);
   }
 }
@@ -174,7 +172,7 @@ void Crawler::do_request(http_request *r)
 
 void Crawler::start()
 {
-  auto links = db.get_links(10);
+  auto links = db->get_links(10);
   for(auto &link : links)
     request_queue.push_back(link);
 
@@ -244,15 +242,15 @@ void Crawler::process_robots(
     }
   }
   if(!blacklist.empty());
-    db.blacklist(blacklist, "robots.txt");
-  db.set_robot_processed(server, protocol);
+    db->blacklist(blacklist, "robots.txt");
+  db->set_robot_processed(server, protocol);
   
   prepare_next_request();
 }
 
 void Crawler::seed(std::string domain, std::string path)
 {
-  db.add_link(domain + path);
+  db->add_link(domain + path);
   std::cout << "Added seed to database\n";
   exit(0);
 }
@@ -261,7 +259,7 @@ void Crawler::handle_stop()
 {
   std::cerr << "\nCaught signal\n";
   io_service.stop();
-  db.close_db();
+  db->close_db();
   exit(0);
 }
 

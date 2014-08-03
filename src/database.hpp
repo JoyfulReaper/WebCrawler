@@ -1,5 +1,5 @@
 /*
- * WebCrawler: sqlite.hpp
+ * WebCrawler: database.hpp
  * Copyright (C) 2014 Kyle Givler
  *
  * This program is free software: you can redistribute it and/or modify
@@ -17,99 +17,98 @@
  */
 
 /**
- * @file sqlite.hpp
+ * @file database.hpp
  * @author Kyle Givler
  */
 
-#ifndef _SQLITE_DATABASE_H_
-#define _SQLITE_DATABASE_H_
+#ifndef _WC_DATABASE_H_
+#define _WC_DATABASE_H_
 
-#include <sqlite3.h>
-#include "database.hpp"
-#include "logger/logger.hpp"
+#include <vector>
+#include <tuple>
 
+typedef std::vector<std::tuple<std::string,std::string,std::string>> v_links;
 
-class sqlite : public database
+class database
 {
 public:
-  sqlite(std::string databaseFile);
+  virtual ~database() {}
 
-  virtual ~sqlite();
-  
   /**
    * Close the database
    */
-  void close_db();
+  virtual void close_db() = 0;
   
   /**
    * @param links A vector of links to add to the database
    */
-  void add_links(std::vector<std::string> links);
+  virtual void add_links(std::vector<std::string> links) = 0;
   
   /**
    * @param link A single link to add to the database
    */
-  void add_link(std::string link)
-  {
-    std::vector<std::string> vlink;
-    vlink.push_back(link);
-    add_links(vlink);
-  }
+  virtual void add_link(std::string link) = 0;
   
   /**
    * @return true if the URL has been visited, false if not
    */
-  bool get_visited(
+  virtual bool get_visited(
     std::string domain, 
     std::string path, 
-    std::string protocol);
+    std::string protocol) = 0;
   
-  void set_visited(
+  /**
+   * Set resource as visited
+   */
+  virtual void set_visited(
     std::string domain,
     std::string path, 
     std::string protocol,
-    unsigned int code);
+    unsigned int code) = 0;
   
-  void set_last_visited(
+  /**
+   * Update the last visited date
+   */
+  virtual void set_last_visited(
     std::string domain, 
     std::string path, 
-    std::string protocol);
+    std::string protocol) = 0;
   
-  v_links get_links(std::size_t num);
+  /**
+   * @param num The number of links to return
+   * @return a vector of tuples representing links
+   */
+  virtual v_links get_links(std::size_t num) = 0;
   
-  bool check_blacklist(
+  virtual bool check_blacklist(
     std::string domain, 
     std::string path, 
-    std::string proto);
-  
-  void remove_link(
+    std::string proto) = 0;
+    
+  virtual void remove_link(
     std::string domain, 
     std::string path, 
-    std::string protocol);
-  
-  void blacklist(
+    std::string protocol) = 0;
+    
+  virtual void blacklist(
     v_links blacklist, 
-    std::string reason = "default");
+    std::string reason = "default") = 0;
   
-  void blacklist(
+  virtual void blacklist(
     std::string domain, 
     std::string path, 
     std::string protocol, 
-    std::string reason = "default");
+    std::string reason = "default") = 0;
   
-  void set_robot_processed(
+  virtual void set_robot_processed(
     std::string server, 
-    std::string protocol);
+    std::string protocol) = 0;
   
-  bool should_process_robots(
+  virtual bool should_process_robots(
     std::string domain, 
-    std::string protocol);
-
+    std::string protocol) = 0;
+    
 private:
-  std::string databaseFile;
-  sqlite3 *db;
-  Logger logger;
 };
-
 
 #endif

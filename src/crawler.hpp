@@ -80,7 +80,7 @@ private:
   asio::signal_set signals;
   asio::strand strand;
   asio::io_service &io_service;
-  sqlite db;
+  database *db;
   Logger logger;
   
   void do_request(http_request *request);
