@@ -359,37 +359,23 @@ bool sqlite::check_blacklist(
         }
       }
       
-      boost::split(bl_split, bl_path, boost::is_any_of("/"));      
+      boost::split(bl_split, bl_path, boost::is_any_of("/"));
+      for(auto it = bl_split.begin(); it != bl_split.end(); ++it)
+        if(*it == "")
+        {
+          bl_split.erase(it);
+          it = bl_split.begin();
+        }
+      for(auto it = path_split.begin(); it != path_split.end(); ++it)
+        if(*it == "")
+        {
+          it = path_split.erase(it);
+          it = path_split.begin();
+        }
       bool matches = false;
-      for(std::size_t i = 1; i < path_split.size(); i++)
-      {
-        if(i >= bl_split.size())
-          break;
-        
-        if(path_split[i] == bl_split[i] || bl_split[i] == "*")
-          matches = true;
-        else if( (found = bl_split[i].find("*")) != std::string::npos
-          && matches)
-        {
-          bl_split[i] = boost::algorithm::replace_all_copy
-            (bl_split[i], "*", "");
-            
-          std::string temp = bl_split[i].substr(0, found);
-          std::size_t path_len = path_split[i].length();
-          if(found <= path_len)
-          {
-            if( path_split[i].substr(found, path_len) == temp)
-            {
-              matches = true;
-            }
-          }
-        }
-        else 
-        {
-          matches = false;
-          break;
-        }
-      }
+      
+
+
       if(matches)
       {
         logger.info("Match: " + bl_path + " : " + proto + "://" + domain + path);

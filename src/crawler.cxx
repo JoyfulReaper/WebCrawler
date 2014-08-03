@@ -87,6 +87,7 @@ void Crawler::handle_recived_robots(http_request *request)
   
   logger.trace("handle_recived_robots: deleting pointer");
   delete(request);
+  pDeleted++;
   
   return;
 }
@@ -104,6 +105,7 @@ void Crawler::handle_recived_head(http_request *r)
       
     logger.trace("Deleting pointer becasue not HTML");
     delete(r);
+    pDeleted++;
     prepare_next_request();
   }
   return;
@@ -123,6 +125,7 @@ void Crawler::handle_recived_get(http_request *r)
     
   logger.trace("Get: Deleting request, no longer needed");
   delete(r);
+  pDeleted++;
   
   prepare_next_request();
   
@@ -131,7 +134,12 @@ void Crawler::handle_recived_get(http_request *r)
 
 void Crawler::prepare_next_request()
 {
-  logger.trace("Preparing next request");
+  logger.trace("Preparing next request: Queue size: " +
+    std::to_string(request_queue.size()));
+  
+  logger.trace("Pointers: created: " + std::to_string(pCreated) + 
+    " deleted: " + std::to_string(pDeleted));
+  
   if(!request_queue.empty())
   {
     auto t_request = request_queue.front();
@@ -144,6 +152,7 @@ void Crawler::prepare_next_request()
       
     http_request *request = new http_request(*this, domain, path,
       protocol);
+    pCreated++;
     request->set_request_type(RequestType::HEAD);
     
     if(db->should_process_robots(domain, protocol))
@@ -172,7 +181,7 @@ void Crawler::do_request(http_request *r)
 
 void Crawler::start()
 {
-  auto links = db->get_links(10);
+  auto links = db->get_links(100);
   for(auto &link : links)
     request_queue.push_back(link);
 

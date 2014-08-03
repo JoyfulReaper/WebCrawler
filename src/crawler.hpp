@@ -83,6 +83,9 @@ private:
   database *db;
   Logger logger;
   
+  std::size_t pCreated=0;
+  std::size_t pDeleted=0;
+  
   void do_request(http_request *request);
   
   void handle_recived_robots(http_request *request);
