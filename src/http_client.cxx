@@ -29,7 +29,7 @@ http_client::http_client(asio::io_service &io_service)
     strand(io_service),
     resolver(io_service),
     logger("http_client"),
-    sslctx(asio::ssl::context::sslv23),
+    sslctx(asio::ssl::context::sslv23_client),
     ssl_sock(socket, sslctx),
     deadline(io_service)
 {
@@ -150,6 +150,12 @@ void http_client::make_request(
     request_stream << "Connection: close\r\n\r\n";
   }
   
+  if(request->get_protocol() == "https")
+  {
+    ssl_sock.set_verify_mode(asio::ssl::verify_none);
+    ssl_sock.set_verify_callback(bind(&http_client::always_verify, this, _1, _2));
+  }
+  
   tcp::resolver::query query(request->get_server(), std::to_string(request->get_port()));
   resolver.async_resolve( query, strand.wrap(bind ( &http_client::handle_resolve, this,
     asio::placeholders::error, asio::placeholders::iterator, request ) ) );
@@ -169,7 +175,6 @@ void http_client::handle_resolve(
     if(request->get_protocol() == "https")
     {
       logger.trace("https resolve");
-      sslctx.set_verify_mode(asio::ssl::verify_none);
       
       asio::async_connect( ssl_sock.lowest_layer(), endpoint_it,
       strand.wrap( bind( &http_client::handle_connect, this, 
@@ -199,6 +204,7 @@ void http_client::handle_connect(
     if(request->get_protocol() == "https")
     {
       logger.trace("https connect");
+      ssl_sock.lowest_layer().set_option(tcp::no_delay(true));
       ssl_sock.async_handshake(asio::ssl::stream_base::client,
       strand.wrap( bind( &http_client::handle_handshake, this, 
         asio::placeholders::error, request ) ) );
@@ -230,8 +236,17 @@ void http_client::handle_handshake(
     asio::async_write( ssl_sock, request->get_request_buf(), 
       strand.wrap( bind ( &http_client::handle_write_request, this, 
         asio::placeholders::error, request ) ) );
-  } else {
-    logger.warn("Handshake: " + err.message());
+        
+        
+  }
+  if (err.category() == asio::error::get_ssl_category() &&
+    err.value() == ERR_PACK(ERR_LIB_SSL, 0, SSL_R_SHORT_READ)) {
+    logger.warn("SHORT READ!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+      asio::async_read(ssl_sock, request->get_response_buf(), asio::transfer_at_least(1),
+        strand.wrap( bind(&http_client::handle_write_request, this,
+          asio::placeholders::error, request ) ) );
+  } else if(err != 0) {
+    logger.warn("NOT 0: Handshake: " + err.message());
     request->add_error ("Error: " + err.message());
     stop(request, "handle_handshake");
   }
@@ -421,10 +436,9 @@ void http_client::handle_read_content(
   if(stopped)
     return;
   
-  //logger.trace("handle_read_content: " + request->get_server());
-  
   if(!err)
   {
+    //logger.trace("handle_read_content: " + request->get_server());
     if(!requested_content)
     {
       requested_content = true;

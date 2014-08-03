@@ -69,6 +69,14 @@ private:
   
   void check_deadline(http_request *request);
 
+  bool always_verify(
+    bool preverfied,
+    asio::ssl::verify_context &ctx)
+  {
+    return true;
+  }
+    
+
   void handle_resolve(
     const system::error_code &err, 
     tcp::resolver::iterator endpoint_it, 

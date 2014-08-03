@@ -305,6 +305,7 @@ bool sqlite::check_blacklist(
   std::string proto)
 {
   bool blacklisted = false;
+  std::string  bl_path;
   sqlite3_stmt *statement;
   int rc;
   robot_parser rp;
@@ -328,7 +329,7 @@ bool sqlite::check_blacklist(
     {
       std::string bl_domain = reinterpret_cast<const char*>
         (sqlite3_column_text(statement, 0));
-      std::string bl_path = reinterpret_cast<const char*>
+      bl_path = reinterpret_cast<const char*>
         (sqlite3_column_text(statement, 1));
       std::string bl_proto = reinterpret_cast<const char*>
         (sqlite3_column_text(statement, 2));
@@ -337,10 +338,6 @@ bool sqlite::check_blacklist(
       
       if(!rp.path_is_allowed(bl_path, path))
         blacklisted = true;
-        
-    if(blacklisted)
-      logger.debug("Hit blacklist: " + proto +"://" + domain + path
-        + "pattren: " + bl_path);
       
     } else {
       sqlite3_finalize(statement);
@@ -349,6 +346,10 @@ bool sqlite::check_blacklist(
       throw(CrawlerException(errmsg));
     }
   }
+  
+  if(blacklisted)
+      logger.debug("Hit blacklist: " + proto +"://" + domain + path
+        + " pattren: " + bl_path);
   
   sqlite3_finalize(statement);
   return blacklisted;
