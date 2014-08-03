@@ -39,7 +39,7 @@ using namespace boost;
 class Crawler : public request_reciver
 {
 public:
-  Crawler();
+  Crawler(boost::asio::io_service &io_service);
 
   virtual ~Crawler();
 
@@ -75,17 +75,23 @@ public:
   
 
 private:
-  asio::io_service io_service;
   http_client client;
   std::deque<std::tuple<std::string,std::string,std::string>> request_queue;
   asio::signal_set signals;
   asio::strand strand;
+  asio::io_service &io_service;
   sqlite db;
   Logger logger;
   
   void do_request(http_request *request);
   
-  void prepare_next_request(RequestType type);
+  void handle_recived_robots(http_request *request);
+  
+  void handle_recived_head(http_request *request);
+  
+  void handle_recived_get(http_request *request);
+  
+  void prepare_next_request();
   
   /**
    * Close the database and exit

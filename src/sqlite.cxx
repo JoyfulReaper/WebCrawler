@@ -311,12 +311,9 @@ bool sqlite::check_blacklist(
   bool blacklisted = false;
   std::size_t found;
   sqlite3_stmt *statement;
-  int rc;
-  
+  int rc;  
   boost::split(path_split, path, boost::is_any_of("/"));
-  //for(auto &s : path_split)
-  //  std::cout << "P: " << s << std::endl;
-  
+
   std::string sql = "SELECT domain,path,protocol FROM Blacklist WHERE " \
     "domain = '" + domain + "' AND protocol = '" + proto + "';";
   rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &statement, 0);
@@ -362,10 +359,7 @@ bool sqlite::check_blacklist(
         }
       }
       
-      boost::split(bl_split, bl_path, boost::is_any_of("/"));
-      //for(auto &s : bl_split)
-      //  std::cout << "B: " << s << std::endl;
-      
+      boost::split(bl_split, bl_path, boost::is_any_of("/"));      
       bool matches = false;
       for(std::size_t i = 1; i < path_split.size(); i++)
       {
@@ -381,10 +375,13 @@ bool sqlite::check_blacklist(
             (bl_split[i], "*", "");
             
           std::string temp = bl_split[i].substr(0, found);
-          std::cout << "t: " << temp << std::endl;
-          if( path_split[i].substr(found, path_split[i].length()) == temp)
+          std::size_t path_len = path_split[i].length();
+          if(found <= path_len)
           {
-            matches = true;
+            if( path_split[i].substr(found, path_len) == temp)
+            {
+              matches = true;
+            }
           }
         }
         else 

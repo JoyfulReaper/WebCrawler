@@ -261,6 +261,7 @@ private:
   bool requestCompleted = false;
   bool blacklist = false;
   bool timed_out = false;
+  //bool redirected = false;
   request_reciver *reciver;
   Logger logger;
   

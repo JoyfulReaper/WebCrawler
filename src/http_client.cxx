@@ -53,7 +53,8 @@ void http_client::stop(http_request *request, std::string from)
     
   deadline.cancel();
   request->set_completed(true);
-  request->call_request_reciver(request);
+  //request->call_request_reciver(request);
+  strand.post(bind(&http_request::call_request_reciver, request, request));
 }
 
 void http_client::check_deadline(http_request *request)
@@ -93,7 +94,7 @@ void http_client::make_request(
   std::string domain = request->get_server();
   if(domain[0] == '/' && domain[1] == '/')
   {
-    logger.trace("Fixing link: " + domain);
+    logger.debug("Fixing link: " + domain);
     domain.erase(0,2);
     domain.insert(0, "http://");
   }
@@ -109,7 +110,7 @@ void http_client::make_request(
     }
     domain = domain.substr(found + 3);
     request->set_server(domain);
-    logger.trace("Converted to: " + domain);
+    logger.debug("Converted to: " + domain);
   }
   
   if(request->get_protocol() == "https" && request->get_port() == 80)
@@ -129,7 +130,9 @@ void http_client::make_request(
   }
   else if (request->get_request_type() == RequestType::GET) // Get request
   {
-    logger.debug("GET REQUEST");
+    logger.debug("GET REQUEST: " + request->get_protocol() + "://" + 
+      request->get_server() + request->get_path() + " port: " + 
+        std::to_string(request->get_port()));
     request_stream << "GET " << request->get_path() << " HTTP/1.1\r\n";
     request_stream << "User-Agent: JoyfulReaper\r\n";
     request_stream << "Host: " << request->get_server() << "\r\n";
@@ -137,7 +140,9 @@ void http_client::make_request(
     request_stream << "Connection: close\r\n\r\n";
   } else if (request->get_request_type() == RequestType::HEAD) // Head request
   {
-    logger.debug("HEAD REQUEST");
+    logger.debug("HEAD REQUEST: " + request->get_protocol() + "://" + 
+      request->get_server() + request->get_path() + " port: " + 
+        std::to_string(request->get_port()));
     request_stream << "HEAD " << request->get_path() << " HTTP/1.1\r\n";
     request_stream << "User-Agent: JoyfulReaper\r\n";
     request_stream << "Host: " << request->get_server() << "\r\n";

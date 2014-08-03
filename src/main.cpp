@@ -24,20 +24,27 @@
 #include "crawler.hpp"
 
 #include <boost/asio.hpp>
+#include <boost/thread.hpp>
 #include "http_client.hpp"
 #include "http_request.hpp"
 
+
 int main(int argc, char **argv)
 {
+  boost::asio::io_service io;
+  Crawler crawler(io);
   
   if(argc == 3)
   {
-    Crawler crawler;
     crawler.seed(argv[1], argv[2]);
-    crawler.start();
-  } else {
-    Crawler crawler;
-    crawler.start();
   }
+  
+  //asio::io_service::work work(io);
+  //boost::thread t(boost::bind(&boost::asio::io_service::run, &io));
+  io.post(boost::bind(&Crawler::start, &crawler));
+  io.run();
+  //io.stop();
+  //t.join();
+  
   return 0;
 }

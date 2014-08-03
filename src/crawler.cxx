@@ -24,96 +24,116 @@
 #include "crawler.hpp"
 #include <boost/bind.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
+//#include <boost/signals2/signal.hpp>
 #include <iostream>
 #include <gumbo.h>
 #include <csignal>
 
-Crawler::Crawler()
+Crawler::Crawler(boost::asio::io_service &io_service)
   : client(io_service),
     signals(io_service),
     strand(io_service),
+    io_service(io_service),
     db("test.db"),
     logger("Crawler")
 {
+  logger.setIgnoreLevel(Level::NONE);
   signals.add(SIGINT);
   signals.add(SIGTERM);
+  #ifdef SIGQUIT
   signals.add(SIGQUIT);
+  #endif
   signals.async_wait(bind(&Crawler::handle_stop, this));
 }
  
 Crawler::~Crawler()
 {
 }
+
+//boost::signals2::signal<void ()> sig;
+//sig.connect(boost::bind(&Crawler::do_request, this));
+//sig();
  
 void Crawler::receive_http_request(http_request *r)
 {
-  io_service.reset();
-  logger.info("Queue size: " + std::to_string(request_queue.size()));
-  
-  if(r->get_timed_out())
-  {
-    logger.debug("Deleting pointer after timeout");
-    delete (r);
-    request_queue.pop_front();
-    prepare_next_request(RequestType::HEAD);
-  }
-  
-  auto org = request_queue.front();
-  std::string org_domain = std::get<0>(org);
-  std::string org_path = std::get<1>(org);
-  std::string org_proto = std::get<2>(org);
+  logger.trace("Recived completed request: " + r->get_protocol() + "://"
+    + r->get_server() + r->get_path() );
+    
   std::size_t found;
-  
-  // We were redirected
-  if(r->get_server() != org_domain || r->get_path() != org_path)
+  if( (found = r->get_path().find("/robots.txt") == 0) )
   {
-    if( (found = r->get_path().find("/robots.txt")) == 0)
-    {
-      process_robots(org_domain, org_proto, r->get_data());
-      delete(r);
-      logger.info("Deleting pointer after robots rediret");
-      prepare_next_request(RequestType::HEAD);
-    }
-    r->set_server(org_domain);
-    r->set_path(org_path);
+    handle_recived_robots(r);
+    return;
   }
   
-  if( (found = r->get_path().find("/robots.txt") ) == 0)
+  if (r->get_request_type() == RequestType::HEAD)
   {
-    process_robots(r->get_server(), r->get_protocol(), r->get_data());
-    logger.info("Deleting pointer after robots");
+    handle_recived_head(r);
+    return;
+  }
+  
+  if(r->get_request_type() == RequestType::GET)
+  {
+    handle_recived_get(r);
+    return;
+  }
+  
+  logger.severe("Fell out of request reciver!!!!!!!!!!!!!!!!!");
+}
+
+
+void Crawler::handle_recived_robots(http_request *request)
+{
+  process_robots(request->get_server(), request->get_protocol(),
+    request->get_data());
+  
+  logger.trace("handle_recived_robots: deleting pointer");
+  delete(request);
+  
+  return;
+}
+  
+void Crawler::handle_recived_head(http_request *r)
+{
+  if(check_if_header_text_html(r->get_headers()))
+  {
+    logger.trace("Converting to get request");
+    r->set_request_type(RequestType::GET);
+    strand.post(bind(&Crawler::do_request, this, r));
+  } else {
+    db.blacklist(r->get_server(), r->get_path(), r->get_protocol(),
+      "Probably not html");
+      
+    logger.trace("Deleting pointer becasue not HTML");
     delete(r);
-    prepare_next_request(RequestType::HEAD);
+    prepare_next_request();
   }
+  return;
+}
   
-  if(r->get_request_type() == RequestType::HEAD)
-  {
-    if(check_if_header_text_html(r->get_headers()))
-    {
-      prepare_next_request(RequestType::GET);
-    } else {
-      r->should_blacklist(true, "Probably not HTML");
-    }
-  }
-  
+void Crawler::handle_recived_get(http_request *r)
+{
   if(r->should_blacklist())
     db.blacklist(r->get_server(), r->get_path(), r->get_protocol(),
       r->get_blacklist_reason());
-      
+
   if(r->get_data().size() != 0)
     db.add_links(r->get_links());
-    
+  
   db.set_visited(r->get_server(), r->get_path(), r->get_protocol(),
     r->get_status_code());
-  
-  request_queue.pop_front();
-  logger.info("Deleting pointer");
+    
+  logger.trace("Get: Deleting request, no longer needed");
   delete(r);
-  prepare_next_request(RequestType::HEAD);
+  
+  prepare_next_request();
+  
+  return;
 }
 
-void Crawler::prepare_next_request(RequestType type)
+void Crawler::prepare_next_request()
 {
+  logger.trace("Preparing next request");
   if(!request_queue.empty())
   {
     auto t_request = request_queue.front();
@@ -121,52 +141,46 @@ void Crawler::prepare_next_request(RequestType type)
     std::string path = std::get<1>(t_request);
     std::string protocol = std::get<2>(t_request);
     
-    logger.info("Creating pointer");
-    http_request *request = new http_request(*this, domain, path, 
+    logger.trace("Creating pointer with: " + domain + " " + path + " "
+      + protocol);
+      
+    http_request *request = new http_request(*this, domain, path,
       protocol);
-    if(type == RequestType::HEAD)
-      request->set_request_type(RequestType::HEAD);
-    else if (type == RequestType::GET)
-      request->set_request_type(RequestType::GET);
-    else
-    {
-      std::cerr << "Unknown request type\n";
-      exit(1);
-    }
+    request->set_request_type(RequestType::HEAD);
     
     if(db.should_process_robots(domain, protocol))
     {
       request->set_path("/robots.txt");
       request->set_request_type(RequestType::GET);
-      do_request(request);
+    } else {
+      request_queue.pop_front();
     }
+    strand.post(bind(&Crawler::do_request, this, request));
     
-    do_request(request);
   } else {
+    std::cout << "Queue is empty, quiting\n";
     db.close_db();
-    std::cout << "Empty queue!\n";
     exit(0);
   }
 }
 
-void Crawler::do_request(http_request *request)
+void Crawler::do_request(http_request *r)
 {
-  client.make_request(request);
-  io_service.run();
+  logger.trace("Sending request to client: " + r->get_protocol() + "://"
+    + r->get_server() + r->get_path());
+  strand.post(bind(&http_client::make_request, &client, r));
+  return;
 }
 
 void Crawler::start()
 {
-  //asio::io_service::work work(io_service);
-  //std::thread t(bind(&asio::io_service::run, &io_service));
-
-  http_client client(io_service);
-
   auto links = db.get_links(10);
   for(auto &link : links)
     request_queue.push_back(link);
 
-  prepare_next_request(RequestType::HEAD);
+  prepare_next_request();
+  //strand.post(bind(&Crawler::prepare_next_request, this, 
+  //  RequestType::HEAD));
 }
 
 
@@ -232,17 +246,21 @@ void Crawler::process_robots(
   if(!blacklist.empty());
     db.blacklist(blacklist, "robots.txt");
   db.set_robot_processed(server, protocol);
+  
+  prepare_next_request();
 }
 
 void Crawler::seed(std::string domain, std::string path)
 {
   db.add_link(domain + path);
+  std::cout << "Added seed to database\n";
   exit(0);
 }
 
 void Crawler::handle_stop()
 {
   std::cerr << "\nCaught signal\n";
+  io_service.stop();
   db.close_db();
   exit(0);
 }
