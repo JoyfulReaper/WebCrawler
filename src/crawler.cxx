@@ -60,19 +60,22 @@ void Crawler::receive_http_request(http_request *r)
   std::size_t found;
   if( (found = r->get_path().find("/robots.txt") == 0) )
   {
-    handle_recived_robots(r);
+    //handle_recived_robots(r);
+    strand.post(bind(&Crawler::handle_recived_robots, this, r));
     return;
   }
   
   if (r->get_request_type() == RequestType::HEAD)
   {
-    handle_recived_head(r);
+    //handle_recived_head(r);
+    strand.post(bind(&Crawler::handle_recived_head, this, r));
     return;
   }
   
   if(r->get_request_type() == RequestType::GET)
   {
-    handle_recived_get(r);
+    strand.post(bind(&Crawler::handle_recived_get, this, r));
+    //handle_recived_get(r);
     return;
   }
   
@@ -89,34 +92,38 @@ void Crawler::handle_recived_robots(http_request *request)
     rp.process_robots(request->get_server(), request->get_protocol(),
       request->get_data(), db);
   } else {
-    
+    //timed out, ill figured out what to do later
   }
   
   logger.trace("handle_recived_robots: deleting pointer");
   delete(request);
   pDeleted++;
   
-  prepare_next_request();
-  
+  //prepare_next_request();
+  strand.post(bind(&Crawler::prepare_next_request, this));
   return;
 }
   
 void Crawler::handle_recived_head(http_request *r)
 {
-  if(check_if_header_text_html(r->get_headers()))
+  if( check_if_header_text_html(r->get_headers()) )
   {
     logger.trace("Converting to get request");
     r->set_request_type(RequestType::GET);
     strand.post(bind(&Crawler::do_request, this, r));
-  } else if (!r->get_timed_out()) {
+    return;
+  }
+  
+  if(!r->get_timed_out())
     db->blacklist(r->get_server(), r->get_path(), r->get_protocol(),
       "Probably not html");
       
-    logger.trace("Deleting pointer becasue not HTML");
-    delete(r);
-    pDeleted++;
-    prepare_next_request();
-  }
+  logger.trace("Deleting pointer becasue not HTML");
+  delete(r);
+  pDeleted++;
+  //prepare_next_request();
+  strand.post(bind(&Crawler::prepare_next_request, this));
+  
   return;
 }
   
@@ -139,7 +146,8 @@ void Crawler::handle_recived_get(http_request *r)
   delete(r);
   pDeleted++;
   
-  prepare_next_request();
+  //prepare_next_request();
+  strand.post(bind(&Crawler::prepare_next_request, this));
   
   return;
 }
@@ -197,7 +205,8 @@ void Crawler::start()
   for(auto &link : links)
     request_queue.push_back(link);
 
-  prepare_next_request();
+  //prepare_next_request();
+  strand.post(bind(&Crawler::prepare_next_request, this));
 }
 
 

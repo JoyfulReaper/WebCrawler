@@ -73,9 +73,7 @@ void http_client::check_deadline(http_request *request)
       request->get_server() + request->get_path());
       
     request->set_timed_out(true);
-    deadline.cancel();
-    request->set_completed(true);
-    request->call_request_reciver(request);
+    strand.post(bind(&http_client::stop, this, request, "Timed out"));
   }
 }
 
@@ -88,8 +86,8 @@ void http_client::make_request(
   deadline.async_wait( std::bind( &http_client::check_deadline, this, request) );
   ssl_sock.set_verify_mode(asio::ssl::verify_none);
   ssl_sock.set_verify_callback(bind(&http_client::always_verify, this, _1, _2));
-  sslctx.set_verify_mode(asio::ssl::verify_none);
-  sslctx.set_verify_callback(bind(&http_client::always_verify, this, _1, _2));
+  //sslctx.set_verify_mode(asio::ssl::verify_none);
+  //sslctx.set_verify_callback(bind(&http_client::always_verify, this, _1, _2));
   
   logger.info( "Requesting: " + request->get_protocol() + "://" + 
     request->get_server() + request->get_path() + " port: " + 
@@ -185,7 +183,8 @@ void http_client::handle_resolve(
   } else {
     logger.warn("Resolve: " + err.message());
     request->add_error("Error: " + err.message());
-    stop(request, "handle_resolve");
+    //stop(request, "handle_resolve");
+    strand.post(bind(&http_client::stop, this, request, "handle_resolve"));
   }
 }
 
@@ -215,7 +214,8 @@ void http_client::handle_connect(
   } else {
     logger.warn("Connect: " + err.message());
     request->add_error ("Error: " + err.message());
-    stop(request, "handle_connect");
+    //stop(request, "handle_connect");
+    strand.post(bind(&http_client::stop, this, request, "handle_connect"));
   }
 }
 
@@ -235,8 +235,6 @@ void http_client::handle_handshake(
     asio::async_write( ssl_sock, request->get_request_buf(), 
       strand.wrap( bind ( &http_client::handle_write_request, this, 
         asio::placeholders::error, request ) ) );
-        
-        
   }
   if (err.category() == asio::error::get_ssl_category() &&
     err.value() == ERR_PACK(ERR_LIB_SSL, 0, SSL_R_SHORT_READ)) {
@@ -247,7 +245,8 @@ void http_client::handle_handshake(
   } else if(err != 0) {
     logger.warn("NOT 0: Handshake: " + err.message());
     request->add_error ("Error: " + err.message());
-    stop(request, "handle_handshake");
+    //stop(request, "handle_handshake");
+    strand.post(bind(&http_client::stop, this, request, "handle_handshake"));
   }
 }
 
@@ -275,7 +274,8 @@ void http_client::handle_write_request(
   } else {
     logger.warn("Write: " + err.message());
     request->add_error ("Error: " + err.message());
-    stop(request, "handle_write_request");
+    //stop(request, "handle_write_request");
+    strand.post(bind(&http_client::stop, this, request, "handle_write_request"));
   }
 }
 
@@ -304,7 +304,8 @@ void http_client::handle_read_status_line(
     {
       logger.warn("Invalid HTTP response");
       request->add_error( "Invalid HTTP response");
-      stop(request, "handle_read_status_line_INVALID");
+      strand.post(bind(&http_client::stop, this, request, "Invalid HTTP Response"));
+      //stop(request, "handle_read_status_line_INVALID");
     }
     
     logger.debug("HTTP Version: " + http_version);
@@ -325,7 +326,8 @@ void http_client::handle_read_status_line(
             err != asio::error::eof) {
     logger.warn("Status line: " + err.message());
     request->add_error ("Error: " + err.message());
-    stop(request, "handle_read_status_line");
+    //stop(request, "handle_read_status_line");
+    strand.post(bind(&http_client::stop, this, request, "handle_read_stantus_line"));
   }
 }
 
@@ -360,7 +362,8 @@ void http_client::handle_read_headers(
        request->get_status_code() == 503)
     {
       logger.warn(request->get_status_code() + ": " + request->get_server() + request->get_path());
-      stop(request, "Stopping becasue of status code");
+      //stop(request, "Stopping becasue of status code");
+      strand.post(bind(&http_client::stop, this, request, "Stopping becasue of status code"));
     }
     
     // If response code is 302 or 301 try request again
@@ -424,7 +427,8 @@ void http_client::handle_read_headers(
   {
     logger.warn("Headers: " + err.message());
     request->add_error ("Error: " + err.message());
-    stop(request, "handle_read_headers");
+    //stop(request, "handle_read_headers");
+    strand.post(bind(&http_client::stop, this, request, "handle_read_headers"));
   }
 }
 
@@ -462,13 +466,16 @@ void http_client::handle_read_content(
   } 
   else if (err.category() == asio::error::get_ssl_category() &&
     err.value() == ERR_PACK(ERR_LIB_SSL, 0, SSL_R_SHORT_READ)) {
-      stop(request, "ssl short read: completed");
+      //stop(request, "ssl short read: completed");
+      strand.post(bind(&http_client::stop, this, request, "SSL Shortread: completed"));
   } else if (err == asio::error::eof) {
       logger.debug("Read Request completed: " + request->get_server() + request->get_path());
-      stop(request, "Completed: EOF");
+      //stop(request, "Completed: EOF");
+      strand.post(bind(&http_client::stop, this, request, "Completed: EOF"));
   } else if (err != asio::error::eof && err != 0) {
       logger.debug("Read Content Error: " + err.message());
       request->add_error ("Error: " + err.message());
-      stop(request, "Completed");
+      strand.post(bind(&http_client::stop, this, request, "Completed: Not EOF"));
+      //stop(request, "Completed");
   }
 }

@@ -339,7 +339,12 @@ bool sqlite::check_blacklist(
       rc = sqlite3_step(statement);
       
       if(!rp.path_is_allowed(bl_path, path))
+      {
         blacklisted = true;
+        logger.debug("Hit blacklist: " + proto +"://" + domain + path
+          + " patern: " + bl_path);
+        sleep(2);
+      }
       
     } else {
       sqlite3_finalize(statement);
@@ -349,12 +354,6 @@ bool sqlite::check_blacklist(
     }
   }
   
-  if(blacklisted)
-  {
-      logger.debug("Hit blacklist: " + proto +"://" + domain + path
-        + " patern: " + bl_path);
-      sleep(2);
-  }
   sqlite3_finalize(statement);
   return blacklisted;
 }
