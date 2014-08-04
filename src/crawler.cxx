@@ -58,7 +58,7 @@ void Crawler::receive_http_request(http_request *r)
 {
   logger.trace("Recived completed request: " + r->get_protocol() + "://"
     + r->get_server() + r->get_path() );
-    
+
   std::size_t found;
   if( (found = r->get_path().find("/robots.txt") == 0) )
   {
@@ -89,6 +89,15 @@ void Crawler::receive_http_request(http_request *r)
 void Crawler::handle_recived_robots(http_request *request)
 {
   robot_parser rp;
+  
+  if(request->get_request_type() == RequestType::HEAD)
+  {
+    logger.trace("Converting to get request");
+    request->set_request_type(RequestType::GET);
+    strand.post(bind(&Crawler::do_request, this, request));
+    return;
+  }
+  
   if(!request->get_timed_out() && !request->error())
   {
     rp.process_robots(request->get_server(), request->get_protocol(),
@@ -188,7 +197,7 @@ void Crawler::prepare_next_request()
     if(db->should_process_robots(domain, protocol))
     {
       request->set_path("/robots.txt");
-      request->set_request_type(RequestType::GET);
+      //request->set_request_type(RequestType::GET);
     } else {
       request_queue.pop_front();
     }
@@ -211,7 +220,7 @@ void Crawler::do_request(http_request *r)
 
 void Crawler::start()
 {
-  auto links = db->get_links(50);
+  auto links = db->get_links(500);
   for(auto &link : links)
     request_queue.push_back(link);
 

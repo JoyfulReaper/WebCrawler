@@ -77,6 +77,14 @@ private:
     return true;
   }
     
+  void ssl_shutdown_handler(
+    const system::error_code &err,
+    http_request *request)
+    {
+      logger.trace("ssl shutdown");
+      ssl_sock.lowest_layer().close();
+      return;
+    }
 
   void handle_resolve(
     const system::error_code &err, 

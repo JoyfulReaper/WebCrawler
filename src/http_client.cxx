@@ -33,7 +33,7 @@ http_client::http_client(asio::io_service &io_service)
     ssl_sock(socket, sslctx),
     deadline(io_service)
 {
-  logger.setIgnoreLevel(Level::TRACE);
+  logger.setIgnoreLevel(Level::NONE);
 }
 
 http_client::~http_client()
@@ -86,9 +86,10 @@ void http_client::make_request(
   deadline.async_wait( std::bind( &http_client::check_deadline, this, request) );
   ssl_sock.set_verify_mode(asio::ssl::verify_none);
   ssl_sock.set_verify_callback(bind(&http_client::always_verify, this, _1, _2));
+  ssl_sock.async_shutdown(bind(&http_client::ssl_shutdown_handler, this, asio::placeholders::error, request));
+  
   //sslctx.set_verify_mode(asio::ssl::verify_none);
   //sslctx.set_verify_callback(bind(&http_client::always_verify, this, _1, _2));
-  
   //logger.info( "Requesting: " + request->get_protocol() + "://" + 
   //  request->get_server() + request->get_path() + " port: " + 
   //    std::to_string(request->get_port()));
