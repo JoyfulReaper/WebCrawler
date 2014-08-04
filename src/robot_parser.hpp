@@ -40,8 +40,10 @@ public:
   
 void process_robots(
   std::string server, 
-  std::string protocol, 
-  std::string data, database *db);
+  std::string protocol,
+  std::string data,
+  bool timed_out,
+  database *db);
   
 private:
   Logger logger;

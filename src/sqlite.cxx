@@ -442,12 +442,17 @@ void sqlite::blacklist(v_links blacklist, std::string reason)
    return;
 }
 
-void sqlite::set_robot_processed(std::string domain, std::string protocol)
+void sqlite::set_robot_processed(std::string domain, 
+  std::string protocol,
+  bool timed_out)
 {
   using namespace std::chrono;
   system_clock::time_point tp = system_clock::now();
   system_clock::duration dtn = tp.time_since_epoch();
   unsigned int seconds = dtn.count() * system_clock::period::num / system_clock::period::den;
+  
+  if(timed_out)
+    seconds = 0;
   
   std::string sql = "INSERT OR REPLACE INTO RobotRules (domain,protocol,lastUpdated) " \
     "VALUES ('" + domain + "', '" + protocol + "', '" + std::to_string(seconds) + "');";

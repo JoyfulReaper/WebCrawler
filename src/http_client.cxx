@@ -21,6 +21,7 @@
 #include <boost/bind.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/algorithm/string/case_conv.hpp>
 #include <sstream>
 
 http_client::http_client(asio::io_service &io_service) 
@@ -140,6 +141,7 @@ void http_client::make_request(
     request_stream << "User-Agent: JoyfulReaper\r\n";
     request_stream << "Host: " << request->get_server() << "\r\n";
     request_stream << "Accept: */*\r\n";
+    request_stream << "Accept-Charset: utf-8\r\n";
     request_stream << "Connection: close\r\n\r\n";
   } else if (request->get_request_type() == RequestType::HEAD) // Head request
   {
@@ -150,6 +152,7 @@ void http_client::make_request(
     request_stream << "User-Agent: JoyfulReaper\r\n";
     request_stream << "Host: " << request->get_server() << "\r\n";
     request_stream << "Accept: */*\r\n";
+    request_stream << "Accept-Charset: utf-8\r\n";
     request_stream << "Connection: close\r\n\r\n";
   }
   
@@ -239,7 +242,7 @@ void http_client::handle_handshake(
   }
   if (err.category() == asio::error::get_ssl_category() &&
     err.value() == ERR_PACK(ERR_LIB_SSL, 0, SSL_R_SHORT_READ)) {
-    logger.warn("SHORT READ!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    logger.warn("Handshake completed with short read");
       asio::async_read(ssl_sock, request->get_response_buf(), asio::transfer_at_least(1),
         strand.wrap( bind(&http_client::handle_write_request, this,
           asio::placeholders::error, request ) ) );
@@ -323,12 +326,12 @@ void http_client::handle_read_status_line(
         strand.wrap( bind( &http_client::handle_read_headers, this, asio::placeholders::error, 
           request ) ) );
     }
-  } else if(err != asio::error::operation_aborted && 
+  } else if(//(err != asio::error::operation_aborted && 
             err != asio::error::eof) {
     logger.warn("Status line: " + err.message());
     request->add_error ("Error: " + err.message());
     //stop(request, "handle_read_status_line");
-    strand.post(bind(&http_client::stop, this, request, "handle_read_stantus_line"));
+    strand.post(bind(&http_client::stop, this, request, "handle_read_status_line"));
   }
 }
 
@@ -374,7 +377,9 @@ void http_client::handle_read_headers(
       auto headers = request->get_headers();
       for(auto &header : headers)
       {
-        std::size_t found = header.find("Location: ");
+        std::string lower_header = header;
+        boost::to_lower(lower_header);
+        std::size_t found = lower_header.find("location: ");
         if(found != std::string::npos)
         {
           std::string location = header.substr(10, header.length());

@@ -102,7 +102,8 @@ public:
   
   virtual void set_robot_processed(
     std::string server, 
-    std::string protocol) = 0;
+    std::string protocol,
+    bool timed_out) = 0;
   
   virtual bool should_process_robots(
     std::string domain, 

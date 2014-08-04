@@ -32,7 +32,7 @@
 #include <tuple>
 #include "logger/logger.hpp"
 
-enum class RequestType { HEAD, GET};
+enum class RequestType { HEAD, GET, ROBOT_HEAD, ROBOT_GET };
 class request_reciver;
 
 class http_request
@@ -93,12 +93,12 @@ public:
   /**
    * @return The status code that the server responded with
    */
-  unsigned int get_status_code() const { return this->status_code; }
+  int get_status_code() const { return this->status_code; }
   
   /**
    * @param code The status code the server responded with
    */
-  void set_status_code(unsigned int code) { this->status_code = code; }
+  void set_status_code(int code) { this->status_code = code; }
   
   /**
    * @return The raw data that the server returned
@@ -268,7 +268,7 @@ private:
   boost::asio::streambuf request_buf;
   std::vector<std::string> errors;
   std::vector<std::string> headers;
-  unsigned int status_code = 0;
+  int status_code = 0;
   bool requestCompleted = false;
   bool blacklist = false;
   bool timed_out = false;

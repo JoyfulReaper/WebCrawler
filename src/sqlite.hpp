@@ -99,7 +99,8 @@ public:
   
   void set_robot_processed(
     std::string server, 
-    std::string protocol);
+    std::string protocol,
+    bool timed_out);
   
   bool should_process_robots(
     std::string domain, 

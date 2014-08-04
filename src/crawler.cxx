@@ -59,15 +59,15 @@ void Crawler::receive_http_request(http_request *r)
   logger.trace("Recived completed request: " + r->get_protocol() + "://"
     + r->get_server() + r->get_path() );
 
-  std::size_t found;
-  if( (found = r->get_path().find("/robots.txt") == 0) )
+  if (r->get_request_type() == RequestType::ROBOT_GET)
   {
     //handle_recived_robots(r);
     strand.post(bind(&Crawler::handle_recived_robots, this, r));
     return;
   }
   
-  if (r->get_request_type() == RequestType::HEAD)
+  if (r->get_request_type() == RequestType::HEAD ||
+      r->get_request_type() == RequestType::ROBOT_HEAD)
   {
     //handle_recived_head(r);
     strand.post(bind(&Crawler::handle_recived_head, this, r));
@@ -86,25 +86,18 @@ void Crawler::receive_http_request(http_request *r)
   exit(1);
 }
 
+////////////////////////////////////////////////////////////////////////
+
 void Crawler::handle_recived_robots(http_request *request)
 {
   robot_parser rp;
+  bool timed_out = false;
   
-  if(request->get_request_type() == RequestType::HEAD)
-  {
-    logger.trace("Converting to get request");
-    request->set_request_type(RequestType::GET);
-    strand.post(bind(&Crawler::do_request, this, request));
-    return;
-  }
+  if(request->get_timed_out())
+    timed_out = true;
   
-  if(!request->get_timed_out() && !request->error())
-  {
-    rp.process_robots(request->get_server(), request->get_protocol(),
-      request->get_data(), db);
-  } else {
-    //timed out, ill figured out what to do later
-  }
+  rp.process_robots(request->get_server(), request->get_protocol(),
+      request->get_data(), timed_out, db);
   
   logger.trace("handle_recived_robots: deleting pointer");
   delete(request);
@@ -117,6 +110,14 @@ void Crawler::handle_recived_robots(http_request *request)
   
 void Crawler::handle_recived_head(http_request *r)
 {
+  if(r->get_request_type() == RequestType::ROBOT_HEAD)
+  {
+    logger.trace("Converting to robot_GET");
+    r->set_request_type(RequestType::ROBOT_GET);
+    strand.post(bind(&Crawler::do_request, this, r));
+    return;
+  }
+  
   if( check_if_header_text_html(r->get_headers()) )
   {
     logger.trace("Converting to get request");
@@ -128,6 +129,9 @@ void Crawler::handle_recived_head(http_request *r)
   if(!r->get_timed_out())
     db->blacklist(r->get_server(), r->get_path(), r->get_protocol(),
       "Probably not html");
+  else 
+    db->blacklist(r->get_server(), r->get_path(), r->get_protocol(),
+      "Timedout");
       
   logger.trace("Deleting pointer becasue not HTML");
   delete(r);
@@ -149,17 +153,20 @@ void Crawler::handle_recived_get(http_request *r)
   
   if(!r->get_timed_out())
   {
-    if(r->get_redirected())
-    {
-      logger.trace("Handeling redirected request");
-      auto settings =  r->get_orignial_settings();
-      db->set_visited(std::get<0>(settings), std::get<1>(settings), 
-        std::get<1>(settings), r->get_status_code());
-    } else {
-      db->set_visited(r->get_server(), r->get_path(), r->get_protocol(),
-        r->get_status_code());
-    }
+    r->set_status_code(-1);
   }
+  
+  if(r->get_redirected())
+  {
+    logger.trace("Handeling redirected request");
+    auto settings =  r->get_orignial_settings();
+    db->set_visited(std::get<0>(settings), std::get<1>(settings), 
+    std::get<1>(settings), r->get_status_code());
+  } else {
+    db->set_visited(r->get_server(), r->get_path(), r->get_protocol(),
+      r->get_status_code());
+  }
+
     
   logger.trace("Get: Deleting request, no longer needed");
   delete(r);
@@ -170,6 +177,8 @@ void Crawler::handle_recived_get(http_request *r)
   
   return;
 }
+
+////////////////////////////////////////////////////////////////////////
 
 void Crawler::prepare_next_request()
 {
@@ -197,7 +206,7 @@ void Crawler::prepare_next_request()
     if(db->should_process_robots(domain, protocol))
     {
       request->set_path("/robots.txt");
-      //request->set_request_type(RequestType::GET);
+      request->set_request_type(RequestType::ROBOT_HEAD);
     } else {
       request_queue.pop_front();
     }
@@ -220,7 +229,7 @@ void Crawler::do_request(http_request *r)
 
 void Crawler::start()
 {
-  auto links = db->get_links(500);
+  auto links = db->get_links(100);
   for(auto &link : links)
     request_queue.push_back(link);
 
@@ -246,6 +255,7 @@ bool Crawler::check_if_header_text_html(std::vector<std::string> headers)
   return false;
 }
 
+////////////////////////////////////////////////////////////////////////
 
 void Crawler::seed(std::string domain, std::string path)
 {

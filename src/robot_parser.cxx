@@ -52,6 +52,7 @@ void robot_parser::process_robots(
   std::string server,
   std::string protocol,
   std::string data,
+  bool timed_out,
   database *db)
 {
   // Follow SOME robots.txt rules...
@@ -93,7 +94,7 @@ void robot_parser::process_robots(
   }
   if(!blacklist.empty());
     db->blacklist(blacklist, "robots.txt");
-  db->set_robot_processed(server, protocol);
+  db->set_robot_processed(server, protocol, timed_out);
   
   return;
 }
