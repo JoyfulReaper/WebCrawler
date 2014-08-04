@@ -36,6 +36,7 @@ http_request::http_request(
   : server(server),
     path(path),
     protocol(protocol),
+    org(server, path, protocol),
     reciver(&reciver),
     logger("http_request")
 {

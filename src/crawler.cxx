@@ -21,6 +21,8 @@
  * @author Kyle Givler
  */
  
+ //FIXME: HANDLE REDIRECTS!!!!
+ 
 #include "crawler.hpp"
 #include "robot_parser.hpp"
 #include <boost/bind.hpp>
@@ -138,8 +140,16 @@ void Crawler::handle_recived_get(http_request *r)
   
   if(!r->get_timed_out())
   {
-    db->set_visited(r->get_server(), r->get_path(), r->get_protocol(),
-      r->get_status_code());
+    if(r->get_redirected())
+    {
+      logger.trace("Handeling redirected request");
+      auto settings =  r->get_orignial_settings();
+      db->set_visited(std::get<0>(settings), std::get<1>(settings), 
+        std::get<1>(settings), r->get_status_code());
+    } else {
+      db->set_visited(r->get_server(), r->get_path(), r->get_protocol(),
+        r->get_status_code());
+    }
   }
     
   logger.trace("Get: Deleting request, no longer needed");

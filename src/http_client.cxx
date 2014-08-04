@@ -89,9 +89,9 @@ void http_client::make_request(
   //sslctx.set_verify_mode(asio::ssl::verify_none);
   //sslctx.set_verify_callback(bind(&http_client::always_verify, this, _1, _2));
   
-  logger.info( "Requesting: " + request->get_protocol() + "://" + 
-    request->get_server() + request->get_path() + " port: " + 
-      std::to_string(request->get_port()));
+  //logger.info( "Requesting: " + request->get_protocol() + "://" + 
+  //  request->get_server() + request->get_path() + " port: " + 
+  //    std::to_string(request->get_port()));
     
   std::string domain = request->get_server();
   if(domain[0] == '/' && domain[1] == '/')
@@ -359,6 +359,7 @@ void http_client::handle_read_headers(
     if(request->get_status_code() == 403 || 
        request->get_status_code() == 404 ||
        request->get_status_code() == 405 ||
+       request->get_status_code() == 408 ||
        request->get_status_code() == 503)
     {
       logger.warn(request->get_status_code() + ": " + request->get_server() + request->get_path());
@@ -401,6 +402,7 @@ void http_client::handle_read_headers(
                 request->reset_errors();
                 request->set_server(server);
                 request->set_path(resource);
+                request->set_redirected(true);
                 logger.warn("Redir to: " + request->get_protocol() + "://" + request->get_server() + request->get_path() + " port: " + std::to_string(request->get_port()));
                 redirect_count++;
                 make_request(request);

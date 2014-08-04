@@ -29,7 +29,8 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include <logger/logger.hpp>
+#include <tuple>
+#include "logger/logger.hpp"
 
 enum class RequestType { HEAD, GET};
 class request_reciver;
@@ -243,6 +244,15 @@ public:
    */
   bool get_timed_out() {return this->timed_out; }
 
+  bool get_redirected() { return this->redirected; }
+  
+  void set_redirected(bool redirect) { this->redirected = redirect; }
+
+  std::tuple<std::string,std::string,std::string> get_orignial_settings()
+  {
+    return org;
+  }
+
 private:
   std::string server = "NULL";
   std::string path = "NULL";
@@ -251,6 +261,7 @@ private:
   std::string http_version = "NULL";
   std::string protocol = "http";
   std::string blacklist_reason = "default";
+  std::tuple<std::string,std::string,std::string> org;
   unsigned int port = 80;
   RequestType type = RequestType::GET;
   boost::asio::streambuf response_buf;
@@ -261,7 +272,7 @@ private:
   bool requestCompleted = false;
   bool blacklist = false;
   bool timed_out = false;
-  //bool redirected = false;
+  bool redirected = false;
   request_reciver *reciver;
   Logger logger;
   
