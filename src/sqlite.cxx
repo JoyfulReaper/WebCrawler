@@ -28,6 +28,8 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
 
+#include <unistd.h>
+
 sqlite::sqlite(std::string databaseFile)
   : databaseFile(databaseFile),
     logger("sqlite")
@@ -348,9 +350,11 @@ bool sqlite::check_blacklist(
   }
   
   if(blacklisted)
+  {
       logger.debug("Hit blacklist: " + proto +"://" + domain + path
         + " pattren: " + bl_path);
-  
+      sleep(3);
+  }
   sqlite3_finalize(statement);
   return blacklisted;
 }

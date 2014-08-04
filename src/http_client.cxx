@@ -86,6 +86,10 @@ void http_client::make_request(
   requested_content = false;
   deadline.expires_from_now(posix_time::seconds(45));
   deadline.async_wait( std::bind( &http_client::check_deadline, this, request) );
+  ssl_sock.set_verify_mode(asio::ssl::verify_none);
+  ssl_sock.set_verify_callback(bind(&http_client::always_verify, this, _1, _2));
+  sslctx.set_verify_mode(asio::ssl::verify_none);
+  sslctx.set_verify_callback(bind(&http_client::always_verify, this, _1, _2));
   
   logger.info( "Requesting: " + request->get_protocol() + "://" + 
     request->get_server() + request->get_path() + " port: " + 
@@ -150,12 +154,6 @@ void http_client::make_request(
     request_stream << "Connection: close\r\n\r\n";
   }
   
-  if(request->get_protocol() == "https")
-  {
-    ssl_sock.set_verify_mode(asio::ssl::verify_none);
-    ssl_sock.set_verify_callback(bind(&http_client::always_verify, this, _1, _2));
-  }
-  
   tcp::resolver::query query(request->get_server(), std::to_string(request->get_port()));
   resolver.async_resolve( query, strand.wrap(bind ( &http_client::handle_resolve, this,
     asio::placeholders::error, asio::placeholders::iterator, request ) ) );
@@ -203,9 +201,10 @@ void http_client::handle_connect(
     logger.trace("handle_connect: " + request->get_server());
     if(request->get_protocol() == "https")
     {
+      //asio::ssl::stream_base::client
       logger.trace("https connect");
       ssl_sock.lowest_layer().set_option(tcp::no_delay(true));
-      ssl_sock.async_handshake(asio::ssl::stream_base::client,
+      ssl_sock.async_handshake(asio::ssl::stream<tcp::socket>::client,
       strand.wrap( bind( &http_client::handle_handshake, this, 
         asio::placeholders::error, request ) ) );
     } else {
@@ -460,10 +459,14 @@ void http_client::handle_read_content(
         strand.wrap( bind(&http_client::handle_read_content, this,
           asio::placeholders::error, request ) ) );
     }
+  } 
+  else if (err.category() == asio::error::get_ssl_category() &&
+    err.value() == ERR_PACK(ERR_LIB_SSL, 0, SSL_R_SHORT_READ)) {
+      stop(request, "ssl short read: completed");
   } else if (err == asio::error::eof) {
       logger.debug("Read Request completed: " + request->get_server() + request->get_path());
       stop(request, "Completed: EOF");
-  } else if (err != asio::error::eof) {
+  } else if (err != asio::error::eof && err != 0) {
       logger.debug("Read Content Error: " + err.message());
       request->add_error ("Error: " + err.message());
       stop(request, "Completed");

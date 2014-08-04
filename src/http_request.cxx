@@ -23,6 +23,7 @@
 
 #include "request_reciver.hpp"
 #include <boost/algorithm/string/case_conv.hpp>
+#include <boost/algorithm/string/replace.hpp>
 #include <cstdlib>
 
 
@@ -76,6 +77,8 @@ void http_request::search_for_links(GumboNode *node, std::vector<std::string> &l
   { // Minimal normilization
     std::size_t found = std::string::npos;
     std::string link = href->value;
+    
+    link = boost::algorithm::replace_all_copy(link, "..", "");
     
     if(link[0] == '/' && link[1] == '/')
     {

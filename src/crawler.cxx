@@ -82,12 +82,19 @@ void Crawler::receive_http_request(http_request *r)
 
 void Crawler::handle_recived_robots(http_request *request)
 {
-  process_robots(request->get_server(), request->get_protocol(),
-    request->get_data());
+  if(!request->get_timed_out() && !request->error())
+  {
+    process_robots(request->get_server(), request->get_protocol(),
+      request->get_data());
+  } else {
+    
+  }
   
   logger.trace("handle_recived_robots: deleting pointer");
   delete(request);
   pDeleted++;
+  
+  prepare_next_request();
   
   return;
 }
@@ -184,7 +191,7 @@ void Crawler::do_request(http_request *r)
 
 void Crawler::start()
 {
-  auto links = db->get_links(100);
+  auto links = db->get_links(50);
   for(auto &link : links)
     request_queue.push_back(link);
 
@@ -257,7 +264,7 @@ void Crawler::process_robots(
     db->blacklist(blacklist, "robots.txt");
   db->set_robot_processed(server, protocol);
   
-  prepare_next_request();
+  return;
 }
 
 void Crawler::seed(std::string domain, std::string path)

@@ -73,6 +73,7 @@ private:
     bool preverfied,
     asio::ssl::verify_context &ctx)
   {
+    logger.trace("always verify!");
     return true;
   }
     
