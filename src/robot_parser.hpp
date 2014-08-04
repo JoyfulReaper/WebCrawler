@@ -25,13 +25,26 @@
 #define _WC_ROBOT_PARSER_H_
 
 #include <string>
+#include "logger/logger.hpp"
+
+class database;
 
 class robot_parser
 {
 public:
-  bool path_is_allowed(std::string pattern, std::string path);
+  robot_parser();
+
+  bool path_is_allowed(
+  std::string pattern, 
+  std::string path);
+  
+void process_robots(
+  std::string server, 
+  std::string protocol, 
+  std::string data, database *db);
   
 private:
+  Logger logger;
 };
 
 #endif

@@ -22,11 +22,16 @@
  */
 
 #include "robot_parser.hpp"
-#include <string>
+#include "database.hpp"
 #include <boost/regex.hpp>
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/algorithm/string/case_conv.hpp>
 
 using namespace boost;
+
+robot_parser::robot_parser() : logger("robot_parser")
+{
+}
 
 bool robot_parser::path_is_allowed(std::string i_pattern, std::string path)
 {
@@ -41,4 +46,54 @@ bool robot_parser::path_is_allowed(std::string i_pattern, std::string path)
     return false; // Path not allowed
 
   return true; // Path is allowed 
+}
+
+void robot_parser::process_robots(
+  std::string server,
+  std::string protocol,
+  std::string data,
+  database *db)
+{
+  // Follow SOME robots.txt rules...
+  // Not fully compliant
+  logger.debug("Proccessing robots.txt for: " + protocol + "://" + 
+    server);
+  
+  v_links blacklist;
+  std::string line;
+  bool foundUserAgent = false;
+  std::size_t found;
+  
+  std::istringstream ss(data);
+  while(!ss.eof())
+  {
+    getline(ss, line);
+    boost::to_lower(line);
+    if( (found = line.find("#")) != std::string::npos )
+      line = line.substr(0, found);
+      
+    if( (found = line.find("user-agent: ")) != std::string::npos)
+    {
+      if( (found = line.find("user-agent: *")) != std::string::npos ||
+           (found = line.find("user-agent: joyfulreaper") != std::string::npos) )
+      {
+        foundUserAgent = true;
+      } else {
+        foundUserAgent = false;
+      }
+    }
+    
+    if( foundUserAgent && (found = line.find("disallow: ")) != std::string::npos)
+    {
+      std::string disallow = line.substr(10, line.length());
+      std::tuple<std::string,std::string,std::string> link(server, 
+        disallow, protocol);
+      blacklist.push_back(link);
+    }
+  }
+  if(!blacklist.empty());
+    db->blacklist(blacklist, "robots.txt");
+  db->set_robot_processed(server, protocol);
+  
+  return;
 }

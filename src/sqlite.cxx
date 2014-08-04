@@ -352,8 +352,8 @@ bool sqlite::check_blacklist(
   if(blacklisted)
   {
       logger.debug("Hit blacklist: " + proto +"://" + domain + path
-        + " pattren: " + bl_path);
-      sleep(3);
+        + " patern: " + bl_path);
+      sleep(2);
   }
   sqlite3_finalize(statement);
   return blacklisted;

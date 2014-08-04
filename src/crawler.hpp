@@ -26,9 +26,7 @@
 
 #include <boost/asio.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
-
 #include <deque>
-
 #include "logger/logger.hpp"
 #include "sqlite.hpp"
 #include "http_client.hpp"
@@ -100,18 +98,6 @@ private:
    * Close the database and exit
    */
   void handle_stop();
-  
-  /**
-   * Process a sites robots.txt
-   * @param server The domain
-   * @param path
-   * @param protocol http or https
-   * @param data
-   */
-  void process_robots(
-    std::string server,
-    std::string protocol,
-    std::string data);
 };
 
 #endif

@@ -22,8 +22,8 @@
  */
  
 #include "crawler.hpp"
+#include "robot_parser.hpp"
 #include <boost/bind.hpp>
-#include <boost/algorithm/string/case_conv.hpp>
 #include <gumbo.h>
 #include <iostream>
 #include <csignal>
@@ -77,15 +77,17 @@ void Crawler::receive_http_request(http_request *r)
   }
   
   logger.severe("Fell out of request reciver!!!!!!!!!!!!!!!!!");
+  db->close_db();
+  exit(1);
 }
-
 
 void Crawler::handle_recived_robots(http_request *request)
 {
+  robot_parser rp;
   if(!request->get_timed_out() && !request->error())
   {
-    process_robots(request->get_server(), request->get_protocol(),
-      request->get_data());
+    rp.process_robots(request->get_server(), request->get_protocol(),
+      request->get_data(), db);
   } else {
     
   }
@@ -106,7 +108,7 @@ void Crawler::handle_recived_head(http_request *r)
     logger.trace("Converting to get request");
     r->set_request_type(RequestType::GET);
     strand.post(bind(&Crawler::do_request, this, r));
-  } else {
+  } else if (!r->get_timed_out()) {
     db->blacklist(r->get_server(), r->get_path(), r->get_protocol(),
       "Probably not html");
       
@@ -196,8 +198,6 @@ void Crawler::start()
     request_queue.push_back(link);
 
   prepare_next_request();
-  //strand.post(bind(&Crawler::prepare_next_request, this, 
-  //  RequestType::HEAD));
 }
 
 
@@ -218,54 +218,6 @@ bool Crawler::check_if_header_text_html(std::vector<std::string> headers)
   return false;
 }
 
-void Crawler::process_robots(
-  std::string server,
-  std::string protocol,
-  std::string data)
-{
-  // Follow SOME robots.txt rules...
-  // Not fully compliant
-  logger.debug("Proccessing robots.txt for: " + protocol + "://" + 
-    server);
-  
-  v_links blacklist;
-  std::string line;
-  bool foundUserAgent = false;
-  std::size_t found;
-  
-  std::istringstream ss(data);
-  while(!ss.eof())
-  {
-    getline(ss, line);
-    boost::to_lower(line);
-    if( (found = line.find("#")) != std::string::npos )
-      line = line.substr(0, found);
-      
-    if( (found = line.find("user-agent: ")) != std::string::npos)
-    {
-      if( (found = line.find("user-agent: *")) != std::string::npos ||
-           (found = line.find("user-agent: joyfulreaper") != std::string::npos) )
-      {
-        foundUserAgent = true;
-      } else {
-        foundUserAgent = false;
-      }
-    }
-    
-    if( foundUserAgent && (found = line.find("disallow: ")) != std::string::npos)
-    {
-      std::string disallow = line.substr(10, line.length());
-      std::tuple<std::string,std::string,std::string> link(server, 
-        disallow, protocol);
-      blacklist.push_back(link);
-    }
-  }
-  if(!blacklist.empty());
-    db->blacklist(blacklist, "robots.txt");
-  db->set_robot_processed(server, protocol);
-  
-  return;
-}
 
 void Crawler::seed(std::string domain, std::string path)
 {
